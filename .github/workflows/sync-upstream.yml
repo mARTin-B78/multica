@@ -38,6 +38,17 @@ jobs:
           fi
 
           # A conflict deliberately fails this job and does not push anything.
-          # Resolve it in the private repository, retaining portainer/ changes.
-          git merge --no-edit upstream/main
+          # Keep this repository's workflow files: GitHub's built-in Actions
+          # token deliberately cannot push modifications to workflow files.
+          # This does not affect the Multica images Portainer runs.
+          git merge --no-commit --no-ff upstream/main
+          git restore --source=HEAD --staged --worktree .github/workflows
+
+          if git diff --cached --quiet && git diff --quiet; then
+            git merge --abort
+            echo "Only upstream workflow files changed."
+            exit 0
+          fi
+
+          git commit --no-edit
           git push origin HEAD:main
