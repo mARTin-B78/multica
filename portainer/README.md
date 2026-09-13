@@ -1,8 +1,8 @@
 # Portainer deployment
 
 This folder is the single Compose path for the Git-linked Portainer stack.
-It uses official Multica images and adds only a small, fail-closed wrapper
-which loads the GitHub App PEM from an owner-only Docker-host file.
+It uses official Multica images and adds only a small, fail-closed inline
+entrypoint which loads the GitHub App PEM from an owner-only Docker-host file.
 
 ## Portainer settings
 

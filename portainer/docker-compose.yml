@@ -51,18 +51,38 @@ services:
     # Read the GitHub App PEM from an owner-only host file, rather than
     # Portainer's one-line environment-variable editor (which flattens PEMs).
     # GITHUB_APP_PRIVATE_KEY_FILE must be an absolute path on the Docker host.
-    # Invoke through sh so this also works when Portainer's Git checkout is
-    # mounted with no direct-exec permission.
-    entrypoint: ["/bin/sh", "/workbench/github-app-key-entrypoint.sh"]
+    # Keeping this inline avoids a fragile bind mount to Portainer's Git
+    # checkout directory.
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        key_file=/run/secrets/multica_github_app_private_key
+        if [ ! -s "$$key_file" ]; then
+          echo "GitHub App private-key file is missing or empty." >&2
+          exit 78
+        fi
+        key=$$(cat "$$key_file")
+        line_count=$$(printf '%s\n' "$$key" | wc -l | tr -d ' ')
+        case "$$key" in
+          *"-----BEGIN "*"PRIVATE KEY-----"*"-----END "*"PRIVATE KEY-----"*) ;;
+          *)
+            echo "GitHub App private-key file is not PEM-formatted." >&2
+            exit 78
+            ;;
+        esac
+        if [ "$$line_count" -lt 3 ]; then
+          echo "GitHub App private-key file must preserve PEM line breaks." >&2
+          exit 78
+        fi
+        export GITHUB_APP_PRIVATE_KEY="$$key"
+        unset key
+        exec /app/entrypoint.sh
     volumes:
       - backend_uploads:/app/data/uploads
       - type: bind
         source: ${GITHUB_APP_PRIVATE_KEY_FILE:?Set an absolute protected PEM path on the Docker host}
         target: /run/secrets/multica_github_app_private_key
-        read_only: true
-      - type: bind
-        source: ./github-app-key-entrypoint.sh
-        target: /workbench/github-app-key-entrypoint.sh
         read_only: true
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-multica}:${POSTGRES_PASSWORD:-multica}@postgres:5432/${POSTGRES_DB:-multica}?sslmode=disable
