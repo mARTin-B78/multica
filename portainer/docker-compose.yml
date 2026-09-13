@@ -214,5 +214,9 @@ services:
     restart: unless-stopped
 
 volumes:
+  # Values can name an existing volume, so an in-place Portainer migration
+  # never creates a blank database by accident.
   pgdata:
+    name: ${MULTICA_PGDATA_VOLUME_NAME:-multica_pgdata}
   backend_uploads:
+    name: ${MULTICA_UPLOADS_VOLUME_NAME:-multica_backend_uploads}

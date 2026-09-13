@@ -15,6 +15,12 @@ the GitHub App, set `GITHUB_APP_SLUG`, `GITHUB_APP_ID`,
 `GITHUB_WEBHOOK_SECRET`, and the non-secret absolute host path
 `GITHUB_APP_PRIVATE_KEY_FILE`.
 
+For an in-place migration of the existing `multica-ai` Portainer stack, also
+set `MULTICA_PGDATA_VOLUME_NAME=multica-ai_pgdata` and
+`MULTICA_UPLOADS_VOLUME_NAME=multica-ai_backend_uploads`. These make the
+deployment attach the existing application data rather than create new
+volumes.
+
 Do **not** set `GITHUB_APP_PRIVATE_KEY` in Portainer. Create the protected PEM
 file on the Docker host, set its mode to `0600`, and make it readable by the
 account that runs Docker. The wrapper rejects a flattened or malformed key.
