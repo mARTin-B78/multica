@@ -51,7 +51,9 @@ services:
     # Read the GitHub App PEM from an owner-only host file, rather than
     # Portainer's one-line environment-variable editor (which flattens PEMs).
     # GITHUB_APP_PRIVATE_KEY_FILE must be an absolute path on the Docker host.
-    entrypoint: ["/workbench/github-app-key-entrypoint.sh"]
+    # Invoke through sh so this also works when Portainer's Git checkout is
+    # mounted with no direct-exec permission.
+    entrypoint: ["/bin/sh", "/workbench/github-app-key-entrypoint.sh"]
     volumes:
       - backend_uploads:/app/data/uploads
       - type: bind
