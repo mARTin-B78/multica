@@ -139,6 +139,12 @@
     "local_pick_failed": "Could not open the directory picker.",
     "local_invalid_dir": "This directory can't be used. Pick another.",
     "local_hint": "Agents on other machines won't see this path — they'll fail to start. Use repos for shared work."
+    ,"web_local_runtime_label": "Runtime computer"
+    ,"web_local_runtime_placeholder": "Choose a runtime computer…"
+    ,"web_local_path_label": "Project work directory"
+    ,"web_local_path_placeholder": "/absolute/path/to/project"
+    ,"web_local_mode_label": "How agents use this directory"
+    ,"web_local_hint": "Enter a directory that already exists on the selected computer. Browsers cannot browse a remote filesystem; the daemon validates access when the run starts. Direct mode uses this checkout without cloning and allows one run at a time."
   },
   "create_issue": {
     "sr_manual": "New Issue",

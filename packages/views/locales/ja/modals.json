@@ -137,6 +137,12 @@
     "local_pick_failed": "ディレクトリ選択画面を開けませんでした。",
     "local_invalid_dir": "このディレクトリは使用できません。別のものを選択してください。",
     "local_hint": "他のマシンのエージェントはこのパスを参照できず、起動に失敗します。共有作業にはリポジトリを使用してください。"
+    ,"web_local_runtime_label": "ランタイムコンピューター"
+    ,"web_local_runtime_placeholder": "ランタイムコンピューターを選択…"
+    ,"web_local_path_label": "プロジェクト作業ディレクトリ"
+    ,"web_local_path_placeholder": "/absolute/path/to/project"
+    ,"web_local_mode_label": "エージェントによるこのディレクトリの使用方法"
+    ,"web_local_hint": "選択したコンピューターに既にあるディレクトリを入力してください。ブラウザーはリモートファイルシステムを参照できません。実行開始時にデーモンがアクセスを検証します。Direct モードは複製せずこのチェックアウトを使用し、一度に 1 つの実行だけを許可します。"
   },
   "create_issue": {
     "sr_manual": "新規タスク",

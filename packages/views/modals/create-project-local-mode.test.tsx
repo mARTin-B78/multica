@@ -17,6 +17,7 @@ let runtimeWorktreeMetadata: "advertised" | "daemon_cannot" | "server_recorded_n
   "advertised";
 // What the desktop validator reports for the picked folder.
 let pickedIsGitRepo: boolean | undefined = true;
+let desktopMode = true;
 
 const createProjectMock = vi.fn().mockResolvedValue({ id: "p1", slug: "p1" });
 
@@ -43,6 +44,10 @@ vi.mock("@tanstack/react-query", () => ({
       data: [
         {
           daemon_id: "daemon-1",
+          status: "online",
+          custom_name: null,
+          device_info: "DGX Spark",
+          name: "Codex",
           metadata: {
             cli_version: runtimeCliVersion,
             // A capability-aware server always writes the key — null when the
@@ -135,7 +140,7 @@ vi.mock("../projects/components/project-due-date-picker", () => ({
 
 // Desktop-only surface: without these the Local directory tab never renders.
 vi.mock("../platform/local-directory", () => ({
-  isDesktopShell: () => true,
+  isDesktopShell: () => desktopMode,
   pickDirectory: () =>
     Promise.resolve({ ok: true, path: "/Users/dev/work/game-client", basename: "game-client" }),
   validateLocalDirectory: () => Promise.resolve({ ok: true, is_git_repo: pickedIsGitRepo }),
@@ -182,6 +187,7 @@ describe("CreateProjectModal — local directory execution mode", () => {
     runtimeWorktreeMetadata = "advertised";
     serverValidatesWorktree = true;
     pickedIsGitRepo = true;
+    desktopMode = true;
   });
 
   // Preselection, not a silent default change: a git repo the runtime can
@@ -309,6 +315,24 @@ describe("CreateProjectModal — local directory execution mode", () => {
 
     expect(screen.getByRole("radio", { name: /Run in parallel, isolated/i })).toBeDisabled();
     expect(screen.getByText(/not a git repository/i)).toBeInTheDocument();
+  });
+
+  it("lets the web app bind an entered directory to an online runtime", async () => {
+    desktopMode = false;
+    const user = userEvent.setup();
+    renderWithI18n(<CreateProjectModal onClose={vi.fn()} />);
+
+    await user.click(screen.getByRole("button", { name: /Local directory/i }));
+
+    expect(screen.getByText("Runtime computer")).toBeInTheDocument();
+    const path = screen.getByLabelText("Project work directory");
+    await user.type(path, "/home/sparky/Docker/todo");
+
+    expect(path).toHaveValue("/home/sparky/Docker/todo");
+    expect(screen.getByRole("radio", { name: /Edit this folder directly/i })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
   });
 });
 

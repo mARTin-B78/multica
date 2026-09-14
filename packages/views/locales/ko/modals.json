@@ -137,6 +137,12 @@
     "local_pick_failed": "디렉터리 선택 창을 열 수 없습니다.",
     "local_invalid_dir": "이 디렉터리는 사용할 수 없습니다. 다른 디렉터리를 선택하세요.",
     "local_hint": "다른 기기의 에이전트는 이 경로를 볼 수 없어 시작에 실패합니다. 공유 작업에는 저장소를 사용하세요."
+    ,"web_local_runtime_label": "런타임 컴퓨터"
+    ,"web_local_runtime_placeholder": "런타임 컴퓨터 선택…"
+    ,"web_local_path_label": "프로젝트 작업 디렉터리"
+    ,"web_local_path_placeholder": "/absolute/path/to/project"
+    ,"web_local_mode_label": "에이전트가 이 디렉터리를 사용하는 방법"
+    ,"web_local_hint": "선택한 컴퓨터에 이미 있는 디렉터리를 입력하세요. 브라우저는 원격 파일 시스템을 탐색할 수 없으며, 실행을 시작할 때 데몬이 접근 권한을 확인합니다. Direct 모드는 복제 없이 이 체크아웃을 사용하며 한 번에 하나의 실행만 허용합니다."
   },
   "create_issue": {
     "sr_manual": "새 태스크",
