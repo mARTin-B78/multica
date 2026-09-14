@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { LogOut } from "lucide-react";
+import { FolderPlus, LogOut, Trash2 } from "lucide-react";
 import { Input } from "@multica/ui/components/ui/input";
 import { Textarea } from "@multica/ui/components/ui/textarea";
 import { Button } from "@multica/ui/components/ui/button";
@@ -33,6 +33,12 @@ import {
 } from "@multica/core/paths";
 import { setCurrentWorkspace } from "@multica/core/platform";
 import type { Workspace } from "@multica/core/types";
+import { runtimeListOptions } from "@multica/core/runtimes";
+import {
+  projectLocationsFromSettings,
+  projectLocationsSettings,
+  type ProjectLocation,
+} from "@multica/core/workspace/project-locations";
 import { AvatarUploadControl } from "../../common/avatar-upload-control";
 import { useNavigation } from "../../navigation";
 import { DeleteWorkspaceDialog } from "./delete-workspace-dialog";
@@ -141,6 +147,15 @@ export function WorkspaceTab() {
     onConfirm: () => Promise<void>;
   } | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const { data: runtimes = [] } = useQuery({
+    ...runtimeListOptions(wsId ?? ""),
+    enabled: !!wsId,
+  });
+  const [projectLocations, setProjectLocations] = useState<ProjectLocation[]>(() =>
+    projectLocationsFromSettings(workspace?.settings),
+  );
+  const [locationsSaveStatus, setLocationsSaveStatus] =
+    useState<SettingsSaveStatus>("idle");
 
   const currentMember = members.find((m) => m.user_id === user?.id) ?? null;
   const canManageWorkspace = currentMember?.role === "owner" || currentMember?.role === "admin";
@@ -162,8 +177,81 @@ export function WorkspaceTab() {
     setDescription(workspace?.description ?? "");
     setContext(workspace?.context ?? "");
     setIssuePrefix(workspace?.issue_prefix ?? "");
+    setProjectLocations(projectLocationsFromSettings(workspace?.settings));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally keyed on id only; see comment above
   }, [workspace?.id]);
+
+  const runtimeComputers = useMemo(
+    () =>
+      Array.from(
+        new Map(
+          runtimes
+            .filter((runtime) => runtime.daemon_id)
+            .map((runtime) => [
+              runtime.daemon_id as string,
+              {
+                id: runtime.daemon_id as string,
+                label: runtime.custom_name || runtime.device_info || runtime.name,
+              },
+            ]),
+        ).values(),
+      ),
+    [runtimes],
+  );
+
+  const updateProjectLocation = (id: string, patch: Partial<ProjectLocation>) => {
+    setProjectLocations((current) =>
+      current.map((location) => (location.id === id ? { ...location, ...patch } : location)),
+    );
+    setLocationsSaveStatus("idle");
+  };
+
+  const addProjectLocation = (system = false) => {
+    const daemonId = runtimeComputers[0]?.id;
+    if (!daemonId) return;
+    setProjectLocations((current) => [
+      ...current,
+      {
+        id: crypto.randomUUID(),
+        daemon_id: daemonId,
+        label: system ? "System filesystem" : "Project folder",
+        path: system ? "/" : "",
+        system,
+      },
+    ]);
+    setLocationsSaveStatus("idle");
+  };
+
+  const saveProjectLocations = async () => {
+    if (!workspace) return;
+    const invalid = projectLocations.some(
+      (location) => !location.label.trim() || !location.path.trim().startsWith("/"),
+    );
+    if (invalid) {
+      setLocationsSaveStatus("error");
+      toast.error(t(($) => $.workspace.project_locations_invalid));
+      return;
+    }
+    setLocationsSaveStatus("saving");
+    try {
+      const updated = await api.updateWorkspace(workspace.id, {
+        settings: projectLocationsSettings(workspace.settings, projectLocations),
+      });
+      qc.setQueryData(workspaceKeys.list(), (old: Workspace[] | undefined) =>
+        old?.map((ws) => (ws.id === updated.id ? updated : ws)),
+      );
+      setProjectLocations(projectLocationsFromSettings(updated.settings));
+      setLocationsSaveStatus("saved");
+      toast.success(t(($) => $.workspace.project_locations_toast_saved));
+    } catch (error) {
+      setLocationsSaveStatus("error");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : t(($) => $.workspace.project_locations_toast_failed),
+      );
+    }
+  };
 
   // Letters + digits only, uppercase, capped at 10 chars. The backend
   // uppercases and trims on its side too — this is purely a UX guardrail
@@ -461,6 +549,113 @@ export function WorkspaceTab() {
                 {t(($) => $.workspace.manage_hint)}
               </div>
             )}
+        </SettingsCard>
+      </SettingsSection>
+
+      <SettingsSection
+        title={t(($) => $.workspace.project_locations_title)}
+        description={t(($) => $.workspace.project_locations_description)}
+        action={
+          <SettingsSaveState
+            status={locationsSaveStatus}
+            savingLabel={t(($) => $.workspace.project_locations_saving)}
+            savedLabel={t(($) => $.workspace.project_locations_saved)}
+            errorLabel={t(($) => $.workspace.project_locations_save_failed)}
+          />
+        }
+      >
+        <SettingsCard>
+          {runtimeComputers.length === 0 ? (
+            <div className="px-4 py-3 text-caption text-muted-foreground">
+              {t(($) => $.workspace.project_locations_none)}
+            </div>
+          ) : (
+            <>
+              {projectLocations.map((location) => (
+                <div
+                  key={location.id}
+                  className="grid gap-2 border-b px-4 py-3 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_auto]"
+                >
+                  <div className="space-y-1">
+                    <Input
+                      value={location.label}
+                      aria-label={t(($) => $.workspace.project_locations_name_aria)}
+                      onChange={(event) => updateProjectLocation(location.id, { label: event.target.value })}
+                      disabled={!canManageWorkspace}
+                      placeholder={t(($) => $.workspace.project_locations_name_placeholder)}
+                    />
+                    <select
+                      value={location.daemon_id}
+                      aria-label={t(($) => $.workspace.project_locations_runtime_aria)}
+                      onChange={(event) => updateProjectLocation(location.id, { daemon_id: event.target.value })}
+                      disabled={!canManageWorkspace}
+                      className="h-8 w-full rounded-md border bg-transparent px-2 text-caption outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    >
+                      {runtimeComputers.map((computer) => (
+                        <option key={computer.id} value={computer.id}>
+                          {computer.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <Input
+                    value={location.path}
+                    aria-label={t(($) => $.workspace.project_locations_path_aria)}
+                    onChange={(event) => updateProjectLocation(location.id, { path: event.target.value })}
+                    disabled={!canManageWorkspace}
+                    placeholder={t(($) => $.workspace.project_locations_path_placeholder)}
+                    className="font-mono"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label={t(($) => $.workspace.project_locations_remove_aria, {
+                      name: location.label || t(($) => $.workspace.project_locations_title),
+                    })}
+                    disabled={!canManageWorkspace}
+                    onClick={() => {
+                      setProjectLocations((current) => current.filter((entry) => entry.id !== location.id));
+                      setLocationsSaveStatus("idle");
+                    }}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
+              ))}
+              <div className="flex flex-wrap items-center gap-2 px-4 py-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!canManageWorkspace || runtimeComputers.length === 0}
+                  onClick={() => addProjectLocation(false)}
+                >
+                  <FolderPlus className="size-3.5" /> {t(($) => $.workspace.project_locations_add_folder)}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!canManageWorkspace || runtimeComputers.length === 0}
+                  onClick={() => addProjectLocation(true)}
+                >
+                  {t(($) => $.workspace.project_locations_add_system)}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={!canManageWorkspace || locationsSaveStatus === "saving"}
+                  onClick={saveProjectLocations}
+                >
+                  {t(($) => $.workspace.project_locations_save)}
+                </Button>
+              </div>
+              <p className="px-4 pb-3 text-micro text-muted-foreground">
+                {t(($) => $.workspace.project_locations_system_hint)}
+              </p>
+            </>
+          )}
         </SettingsCard>
       </SettingsSection>
 
