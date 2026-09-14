@@ -195,6 +195,9 @@ services:
 
   frontend:
     image: ${MULTICA_WEB_IMAGE:-ghcr.io/multica-ai/multica-web}:${MULTICA_IMAGE_TAG:-latest}
+    # Set MULTICA_WEB_PULL_POLICY=never when this is a locally built image.
+    # The default preserves normal GHCR update behavior for official images.
+    pull_policy: ${MULTICA_WEB_PULL_POLICY:-missing}
     container_name: multica-frontend
     depends_on:
       - backend
