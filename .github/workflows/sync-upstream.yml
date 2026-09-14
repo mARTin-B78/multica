@@ -1,0 +1,54 @@
+name: Sync upstream Multica
+
+on:
+  schedule:
+    - cron: "23 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: multica-upstream-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out private mirror
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Merge upstream changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "multica upstream sync"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream https://github.com/multica-ai/multica.git 2>/dev/null || \
+            git remote set-url upstream https://github.com/multica-ai/multica.git
+          git fetch --no-tags upstream main
+
+          if git merge-base --is-ancestor upstream/main HEAD; then
+            echo "Already up to date with upstream."
+            exit 0
+          fi
+
+          # A conflict deliberately fails this job and does not push anything.
+          # Keep this repository's workflow files: GitHub's built-in Actions
+          # token deliberately cannot push modifications to workflow files.
+          # This does not affect the Multica images Portainer runs.
+          git merge --no-commit --no-ff upstream/main
+          git restore --source=HEAD --staged --worktree .github/workflows
+
+          if git diff --cached --quiet && git diff --quiet; then
+            git merge --abort
+            echo "Only upstream workflow files changed."
+            exit 0
+          fi
+
+          git commit --no-edit
+          git push origin HEAD:main
