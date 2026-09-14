@@ -142,6 +142,10 @@
     ,"web_local_path_label": "프로젝트 작업 디렉터리"
     ,"web_local_path_placeholder": "/absolute/path/to/project"
     ,"web_local_mode_label": "에이전트가 이 디렉터리를 사용하는 방법"
+    ,"web_local_add": "폴더 추가"
+    ,"web_local_added": "폴더가 추가되었습니다. 선택한 런타임이 첫 실행 전에 확인합니다."
+    ,"web_local_runtime_required": "이 폴더를 추가하기 전에 런타임 컴퓨터를 선택하세요."
+    ,"web_local_path_required": "추가하기 전에 절대 폴더 경로를 입력하세요."
     ,"web_local_hint": "선택한 컴퓨터에 이미 있는 디렉터리를 입력하세요. 브라우저는 원격 파일 시스템을 탐색할 수 없으며, 실행을 시작할 때 데몬이 접근 권한을 확인합니다. Direct 모드는 복제 없이 이 체크아웃을 사용하며 한 번에 하나의 실행만 허용합니다."
   },
   "create_issue": {

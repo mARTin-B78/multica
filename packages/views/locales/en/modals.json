@@ -144,6 +144,10 @@
     ,"web_local_path_label": "Project work directory"
     ,"web_local_path_placeholder": "/absolute/path/to/project"
     ,"web_local_mode_label": "How agents use this directory"
+    ,"web_local_add": "Add folder"
+    ,"web_local_added": "Folder added. The selected runtime checks it before its first run."
+    ,"web_local_runtime_required": "Choose a runtime computer before adding this folder."
+    ,"web_local_path_required": "Enter an absolute folder path before adding it."
     ,"web_local_hint": "Enter a directory that already exists on the selected computer. Browsers cannot browse a remote filesystem; the daemon validates access when the run starts. Direct mode uses this checkout without cloning and allows one run at a time."
   },
   "create_issue": {

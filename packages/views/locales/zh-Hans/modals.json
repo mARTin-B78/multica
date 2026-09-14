@@ -142,6 +142,10 @@
     ,"web_local_path_label": "项目工作目录"
     ,"web_local_path_placeholder": "/absolute/path/to/project"
     ,"web_local_mode_label": "智能体如何使用此目录"
+    ,"web_local_add": "添加文件夹"
+    ,"web_local_added": "文件夹已添加。所选运行时会在首次运行前检查它。"
+    ,"web_local_runtime_required": "添加此文件夹前请选择运行时计算机。"
+    ,"web_local_path_required": "添加前请输入绝对文件夹路径。"
     ,"web_local_hint": "请输入所选计算机上已存在的目录。浏览器无法浏览远程文件系统；运行开始时守护进程会验证访问权限。Direct 模式直接使用此工作副本而不克隆，并且一次只允许一个运行。"
   },
   "create_issue": {

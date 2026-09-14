@@ -172,7 +172,11 @@ vi.mock("@multica/ui/components/ui/dropdown-menu", () => ({
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
-import { CreateProjectModal, buildLocalDirectoryResourceRef } from "./create-project";
+import {
+  CreateProjectModal,
+  buildLocalDirectoryResourceRef,
+  buildProjectCreationResources,
+} from "./create-project";
 
 async function pickLocalDirectory(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole("button", { name: /Local directory/i }));
@@ -334,6 +338,24 @@ describe("CreateProjectModal — local directory execution mode", () => {
       "true",
     );
   });
+
+  it("attaches a confirmed web directory alongside a Git repository", async () => {
+    desktopMode = false;
+    const user = userEvent.setup();
+    renderWithI18n(<CreateProjectModal onClose={vi.fn()} />);
+
+    await user.type(
+      screen.getByPlaceholderText("https://github.com/owner/repo or git@github.com:owner/repo.git"),
+      "https://github.com/example/todo.git",
+    );
+    await user.click(screen.getByRole("button", { name: /^Add$/ }));
+
+    await user.click(screen.getByRole("button", { name: /^Local directory$/ }));
+    await user.type(screen.getByLabelText("Project work directory"), "/home/sparky/Docker/todo");
+    await user.click(screen.getByRole("button", { name: "Add folder" }));
+
+    expect(screen.getByText("Folder added. The selected runtime checks it before its first run.")).toBeInTheDocument();
+  });
 });
 
 // The payload is what the server stores and the daemon later reads; a missing
@@ -368,5 +390,33 @@ describe("buildLocalDirectoryResourceRef", () => {
         mode: "in_place",
       }),
     ).toEqual({ local_path: "/tmp/x", daemon_id: "d", execution_mode: "in_place" });
+  });
+
+  it("keeps Git and local resources together", () => {
+    expect(
+      buildProjectCreationResources({
+        repoUrls: ["https://github.com/example/todo.git"],
+        localDirectory: {
+          path: "/home/sparky/Docker/todo",
+          daemonId: "daemon-1",
+          label: "todo",
+          mode: "in_place",
+        },
+      }),
+    ).toEqual([
+      {
+        resource_type: "github_repo",
+        resource_ref: { url: "https://github.com/example/todo.git" },
+      },
+      {
+        resource_type: "local_directory",
+        resource_ref: {
+          daemon_id: "daemon-1",
+          execution_mode: "in_place",
+          label: "todo",
+          local_path: "/home/sparky/Docker/todo",
+        },
+      },
+    ]);
   });
 });

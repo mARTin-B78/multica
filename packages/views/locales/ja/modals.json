@@ -142,6 +142,10 @@
     ,"web_local_path_label": "プロジェクト作業ディレクトリ"
     ,"web_local_path_placeholder": "/absolute/path/to/project"
     ,"web_local_mode_label": "エージェントによるこのディレクトリの使用方法"
+    ,"web_local_add": "フォルダーを追加"
+    ,"web_local_added": "フォルダーを追加しました。選択したランタイムが最初の実行前に確認します。"
+    ,"web_local_runtime_required": "このフォルダーを追加する前にランタイムコンピューターを選択してください。"
+    ,"web_local_path_required": "追加する前に絶対フォルダーパスを入力してください。"
     ,"web_local_hint": "選択したコンピューターに既にあるディレクトリを入力してください。ブラウザーはリモートファイルシステムを参照できません。実行開始時にデーモンがアクセスを検証します。Direct モードは複製せずこのチェックアウトを使用し、一度に 1 つの実行だけを許可します。"
   },
   "create_issue": {
