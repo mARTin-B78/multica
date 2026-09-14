@@ -103,6 +103,47 @@ export function buildLocalDirectoryResourceRef({
   };
 }
 
+type ProjectCreationResource = {
+  resource_type: "github_repo" | "local_directory";
+  resource_ref: Record<string, unknown>;
+};
+
+/** Build every resource selected in the create-project dialog. */
+export function buildProjectCreationResources({
+  repoUrls,
+  localDirectory,
+}: {
+  repoUrls: string[];
+  localDirectory:
+    | {
+        path: string;
+        daemonId: string;
+        label: string | null;
+        mode: LocalDirectoryExecutionMode;
+      }
+    | null;
+}): ProjectCreationResource[] {
+  return [
+    ...repoUrls.map((url) => ({
+      resource_type: "github_repo" as const,
+      resource_ref: { url },
+    })),
+    ...(localDirectory
+      ? [
+          {
+            resource_type: "local_directory" as const,
+            resource_ref: buildLocalDirectoryResourceRef({
+              localPath: localDirectory.path,
+              daemonId: localDirectory.daemonId,
+              label: localDirectory.label,
+              mode: localDirectory.mode,
+            }),
+          },
+        ]
+      : []),
+  ];
+}
+
 function RepoUrlText({
   url,
   className,
@@ -175,18 +216,18 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
     repo.url.toLowerCase().includes(repoQuery),
   );
 
-  // A project's source is binary: either a set of GitHub repos OR a local
-  // working directory — never both. Mode is the source of truth for what
-  // gets persisted on submit; switching mode does NOT clear the other
-  // side's stash, so toggling back and forth restores the user's prior
-  // selection. Only the mode-matching side is sent to the API. On web the
-  // user selects a registered runtime daemon and enters its absolute path;
-  // Desktop additionally offers a native folder picker and local validation.
+  // A project may attach both Git repositories and one local working
+  // directory. Repositories give agents remote Git context; the directory is
+  // the fast, existing checkout used by the selected runtime. The tabs only
+  // select which editor is visible — they never discard the other resource.
   const desktop = isDesktopShell();
   const daemonStatus = useLocalDaemonStatus();
   const [sourceMode, setSourceMode] = useState<"repos" | "local">("repos");
   const [selectedLocalPath, setSelectedLocalPath] = useState<string | null>(null);
   const [selectedLocalLabel, setSelectedLocalLabel] = useState<string | null>(null);
+  // A typed browser path is deliberately only a draft. It becomes a project
+  // resource after the user explicitly confirms it with "Add folder".
+  const [localDirectoryAdded, setLocalDirectoryAdded] = useState(false);
   const [localPickError, setLocalPickError] = useState<string | null>(null);
   const [localPicking, setLocalPicking] = useState(false);
   // A browser cannot inspect a remote daemon's filesystem. It can still bind
@@ -286,6 +327,22 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
     // The web app cannot inspect a remote directory. Keep the conservative
     // Direct mode preselection rather than guessing whether it is a git repo.
     setLocalIsGitRepo(undefined);
+    setLocalDirectoryAdded(false);
+  };
+
+  const addWebLocalDirectory = () => {
+    const path = selectedLocalPath?.trim();
+    if (!selectedLocalDaemonId) {
+      setLocalPickError(t(($) => $.create_project.web_local_runtime_required));
+      return;
+    }
+    if (!path || !path.startsWith("/")) {
+      setLocalPickError(t(($) => $.create_project.web_local_path_required));
+      return;
+    }
+    setLocalPickError(null);
+    setLocalDirectoryAdded(true);
+    setRepoPopoverOpen(false);
   };
 
   const handlePickLocalDirectory = async () => {
@@ -312,6 +369,7 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
       setSelectedLocalPath(picked.path);
       setSelectedLocalLabel(picked.basename ?? null);
       setLocalIsGitRepo(validation.is_git_repo);
+      setLocalDirectoryAdded(true);
     } finally {
       setLocalPicking(false);
     }
@@ -323,6 +381,7 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
     setLocalPickError(null);
     setLocalIsGitRepo(undefined);
     setLocalMode(null);
+    setLocalDirectoryAdded(false);
   };
 
   // Sync field changes to draft store
@@ -353,34 +412,18 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
 
   const handleSubmit = async () => {
     if (!title.trim() || submitting) return;
-    // `sourceMode` decides which side's stash gets persisted — the other
-    // side is silently dropped, so repos picked then abandoned for local
-    // mode don't leak into the project.
-    let resources:
-      | Array<{ resource_type: "github_repo" | "local_directory"; resource_ref: Record<string, unknown> }>
-      | undefined;
-    if (sourceMode === "repos" && selectedRepos.length > 0) {
-      resources = selectedRepos.map((url) => ({
-        resource_type: "github_repo" as const,
-        resource_ref: { url },
-      }));
-    } else if (
-      sourceMode === "local" &&
-      selectedLocalPath &&
-      selectedLocalDaemonId
-    ) {
-      resources = [
-        {
-          resource_type: "local_directory" as const,
-          resource_ref: buildLocalDirectoryResourceRef({
-            localPath: selectedLocalPath,
-            daemonId: selectedLocalDaemonId,
-            label: selectedLocalLabel,
-            mode: effectiveLocalMode,
-          }),
-        },
-      ];
-    }
+    const resources = buildProjectCreationResources({
+      repoUrls: selectedRepos,
+      localDirectory:
+        localDirectoryAdded && selectedLocalPath && selectedLocalDaemonId
+          ? {
+              path: selectedLocalPath,
+              daemonId: selectedLocalDaemonId,
+              label: selectedLocalLabel,
+              mode: effectiveLocalMode,
+            }
+          : null,
+    });
     setSubmitting(true);
     try {
       const project = await createProject.mutateAsync({
@@ -394,7 +437,7 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
         start_date: startDate || undefined,
         due_date: dueDate || undefined,
         // Server attaches these in the same transaction as the project.
-        resources,
+        resources: resources.length > 0 ? resources : undefined,
       });
       clearDraft();
       onClose();
@@ -703,7 +746,7 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
                     <>
                       <FolderOpen className="size-3" />
                       <span className="max-w-[12rem] truncate">
-                        {selectedLocalPath
+                        {localDirectoryAdded && selectedLocalPath
                           ? selectedLocalLabel ?? selectedLocalPath
                           : t(($) => $.create_project.source_pill_local)}
                       </span>
@@ -722,9 +765,8 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
               }
             />
             <PopoverContent side="top" align="start" className="w-72 p-2 space-y-2">
-              {/* Source mode is binary — repo OR local directory, never both.
-                  Web binds the entered path to a selected online daemon;
-                  Desktop binds it to its own daemon through the native picker. */}
+              {/* The tabs choose an editor; both a repo and a local directory
+                  may be attached to the project. */}
               {(desktop || webLocalDaemons.length > 0) && (
                 <div className="grid grid-cols-2 gap-1 rounded-md bg-muted/60 p-0.5">
                   <button
@@ -904,6 +946,21 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
                           unavailableReason={worktreeUnavailableReason}
                         />
                       </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="w-full text-caption"
+                        onClick={addWebLocalDirectory}
+                        disabled={!selectedLocalPath?.trim() || !selectedLocalDaemonId}
+                      >
+                        <FolderOpen className="size-3" />
+                        {t(($) => $.create_project.web_local_add)}
+                      </Button>
+                      {localDirectoryAdded && (
+                        <p className="text-micro text-emerald-600 dark:text-emerald-400 leading-snug">
+                          {t(($) => $.create_project.web_local_added)}
+                        </p>
+                      )}
                       <p className="text-micro text-amber-600 dark:text-amber-400 leading-snug">
                         {t(($) => $.create_project.web_local_hint)}
                       </p>
@@ -1032,6 +1089,34 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
               )}
             </PopoverContent>
           </Popover>
+
+          {localDirectoryAdded && sourceMode !== "local" && (
+            <PillButton
+              onClick={() => {
+                setSourceMode("local");
+                setRepoPopoverOpen(true);
+              }}
+            >
+              <FolderOpen className="size-3" />
+              <span className="max-w-[12rem] truncate">
+                {selectedLocalLabel ?? selectedLocalPath}
+              </span>
+            </PillButton>
+          )}
+
+          {selectedRepos.length > 0 && sourceMode !== "repos" && (
+            <PillButton
+              onClick={() => {
+                setSourceMode("repos");
+                setRepoPopoverOpen(true);
+              }}
+            >
+              <GithubIcon className="size-3" />
+              <span>
+                {t(($) => $.create_project.repos_pill_count, { count: selectedRepos.length })}
+              </span>
+            </PillButton>
+          )}
 
           {/* Overflow — always the last child so it stays at the end of the
               wrap flow. Only rendered while a date is still collapsible; when
