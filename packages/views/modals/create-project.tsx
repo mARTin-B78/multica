@@ -179,8 +179,9 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
   // working directory — never both. Mode is the source of truth for what
   // gets persisted on submit; switching mode does NOT clear the other
   // side's stash, so toggling back and forth restores the user's prior
-  // selection. Only the mode-matching side is sent to the API. Local mode
-  // is hidden entirely on web (no daemon to bind the path to).
+  // selection. Only the mode-matching side is sent to the API. On web the
+  // user selects a registered runtime daemon and enters its absolute path;
+  // Desktop additionally offers a native folder picker and local validation.
   const desktop = isDesktopShell();
   const daemonStatus = useLocalDaemonStatus();
   const [sourceMode, setSourceMode] = useState<"repos" | "local">("repos");
@@ -188,6 +189,11 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
   const [selectedLocalLabel, setSelectedLocalLabel] = useState<string | null>(null);
   const [localPickError, setLocalPickError] = useState<string | null>(null);
   const [localPicking, setLocalPicking] = useState(false);
+  // A browser cannot inspect a remote daemon's filesystem. It can still bind
+  // an explicitly entered absolute path to an online daemon, which is useful
+  // for self-hosted installations where the project already exists on a server.
+  // Desktop keeps the native directory picker and validation bridge below.
+  const [webLocalDaemonId, setWebLocalDaemonId] = useState<string | null>(null);
   // Execution mode is chosen here rather than after creation: it decides
   // whether tasks edit this folder or hand back a branch, which is part of
   // what the user is setting up, not a setting to discover later.
@@ -206,6 +212,22 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
   // same call that creates the project, so an un-caught rejection would fail the
   // whole creation — check up front and disable the option instead.
   const { data: runtimes = [] } = useQuery(runtimeListOptions(wsId));
+  const webLocalDaemons = Array.from(
+    new Map(
+      runtimes
+        .filter((runtime) => runtime.status === "online" && runtime.daemon_id)
+        .map((runtime) => [
+          runtime.daemon_id as string,
+          {
+            id: runtime.daemon_id as string,
+            label: runtime.custom_name || runtime.device_info || runtime.name,
+          },
+        ]),
+    ).values(),
+  );
+  const selectedLocalDaemonId = desktop
+    ? daemonStatus.daemonId
+    : (webLocalDaemonId ?? webLocalDaemons[0]?.id ?? null);
   // Capability, not version: a dev-built daemon reports a git-describe string
   // that the version floor exempts, so the version check passed for a binary
   // with no worktree implementation (MUL-5707). A backend too old to record the
@@ -215,7 +237,7 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
   // create path, and rejects with a message the modal surfaces.
   const localAdvertisesWorktree = runtimeAdvertisesLocalWorktree(
     runtimes,
-    daemonStatus.daemonId,
+    selectedLocalDaemonId,
   );
   // One declared boolean from the live server. Servers older than the worktree
   // save gate drop execution_mode and answer 201, so "the backend will check"
@@ -253,6 +275,17 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
   const handleSourceModeChange = (mode: "repos" | "local") => {
     setSourceMode(mode);
     setLocalPickError(null);
+  };
+
+  const handleWebLocalPathChange = (path: string) => {
+    const trimmed = path.trim();
+    setSelectedLocalPath(trimmed || null);
+    setSelectedLocalLabel(
+      trimmed ? trimmed.replace(/[\\/]+$/, "").split(/[\\/]/).pop() || trimmed : null,
+    );
+    // The web app cannot inspect a remote directory. Keep the conservative
+    // Direct mode preselection rather than guessing whether it is a git repo.
+    setLocalIsGitRepo(undefined);
   };
 
   const handlePickLocalDirectory = async () => {
@@ -334,14 +367,14 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
     } else if (
       sourceMode === "local" &&
       selectedLocalPath &&
-      daemonStatus.daemonId
+      selectedLocalDaemonId
     ) {
       resources = [
         {
           resource_type: "local_directory" as const,
           resource_ref: buildLocalDirectoryResourceRef({
             localPath: selectedLocalPath,
-            daemonId: daemonStatus.daemonId,
+            daemonId: selectedLocalDaemonId,
             label: selectedLocalLabel,
             mode: effectiveLocalMode,
           }),
@@ -690,10 +723,9 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
             />
             <PopoverContent side="top" align="start" className="w-72 p-2 space-y-2">
               {/* Source mode is binary — repo OR local directory, never both.
-                  Local option is desktop-only because a local_directory
-                  resource has to be pinned to a daemon_id, which doesn't
-                  exist on the web. */}
-              {desktop && (
+                  Web binds the entered path to a selected online daemon;
+                  Desktop binds it to its own daemon through the native picker. */}
+              {(desktop || webLocalDaemons.length > 0) && (
                 <div className="grid grid-cols-2 gap-1 rounded-md bg-muted/60 p-0.5">
                   <button
                     type="button"
@@ -829,6 +861,57 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
                   <div className="text-caption font-medium text-muted-foreground">
                     {t(($) => $.create_project.local_heading)}
                   </div>
+                  {!desktop && (
+                    <>
+                      <label className="block space-y-1 text-caption">
+                        <span className="font-medium text-muted-foreground">
+                          {t(($) => $.create_project.web_local_runtime_label)}
+                        </span>
+                        <select
+                          value={selectedLocalDaemonId ?? ""}
+                          onChange={(event) => setWebLocalDaemonId(event.target.value || null)}
+                          className="h-8 w-full rounded-md border bg-transparent px-2 text-caption outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        >
+                          <option value="">
+                            {t(($) => $.create_project.web_local_runtime_placeholder)}
+                          </option>
+                          {webLocalDaemons.map((daemon) => (
+                            <option key={daemon.id} value={daemon.id}>
+                              {daemon.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="block space-y-1 text-caption">
+                        <span className="font-medium text-muted-foreground">
+                          {t(($) => $.create_project.web_local_path_label)}
+                        </span>
+                        <input
+                          type="text"
+                          value={selectedLocalPath ?? ""}
+                          onChange={(event) => handleWebLocalPathChange(event.target.value)}
+                          placeholder={t(($) => $.create_project.web_local_path_placeholder)}
+                          className="h-8 w-full rounded-md border bg-transparent px-2 font-mono text-caption outline-none placeholder:font-sans placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring"
+                        />
+                      </label>
+                      <div className="space-y-1">
+                        <span className="text-caption font-medium text-muted-foreground">
+                          {t(($) => $.create_project.web_local_mode_label)}
+                        </span>
+                        <LocalDirectoryModeOptions
+                          value={effectiveLocalMode}
+                          onChange={(mode) => setLocalMode(mode)}
+                          unavailableReason={worktreeUnavailableReason}
+                        />
+                      </div>
+                      <p className="text-micro text-amber-600 dark:text-amber-400 leading-snug">
+                        {t(($) => $.create_project.web_local_hint)}
+                      </p>
+                    </>
+                  )}
+
+                  {desktop && (
+                    <>
                   {/* Daemon must be online — daemon_id is required to bind
                       the resource. If it's offline, surface why and disable
                       the picker; once it boots we re-render automatically
@@ -943,6 +1026,8 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
                   <p className="text-micro text-muted-foreground leading-snug">
                     {t(($) => $.create_project.local_hint)}
                   </p>
+                    </>
+                  )}
                 </>
               )}
             </PopoverContent>
