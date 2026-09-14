@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useMemo, useState, useRef } from "react";
 import { CalendarClock, CalendarDays, ChevronRight, FolderOpen, GitBranch, Maximize2, Minimize2, MoreHorizontal, Pencil, Search, X as XIcon, UserMinus } from "lucide-react";
 
 /**
@@ -72,6 +72,7 @@ import {
   runtimeListOptions,
 } from "@multica/core/runtimes";
 import { useConfigStore } from "@multica/core/config";
+import { projectLocationsFromSettings } from "@multica/core/workspace/project-locations";
 import type { LocalDirectoryExecutionMode } from "@multica/core/types";
 import { LocalDirectoryModeOptions } from "../projects/components/local-directory-mode-dialog";
 
@@ -269,6 +270,17 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
   const selectedLocalDaemonId = desktop
     ? daemonStatus.daemonId
     : (webLocalDaemonId ?? webLocalDaemons[0]?.id ?? null);
+  // Settings → Project locations provides deliberate, per-runtime starting
+  // points. They are shortcuts for now; the typed path remains available for
+  // one-off infrastructure work and older daemons. The planned daemon browser
+  // will use this same allow-list as its traversal boundary.
+  const projectLocations = useMemo(
+    () => projectLocationsFromSettings(workspace?.settings),
+    [workspace?.settings],
+  );
+  const selectedDaemonLocations = projectLocations.filter(
+    (location) => location.daemon_id === selectedLocalDaemonId,
+  );
   // Capability, not version: a dev-built daemon reports a git-describe string
   // that the version floor exempts, so the version check passed for a binary
   // with no worktree implementation (MUL-5707). A backend too old to record the
@@ -924,6 +936,32 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
                           ))}
                         </select>
                       </label>
+                      {selectedDaemonLocations.length > 0 && (
+                        <div className="space-y-1">
+                          <span className="text-caption font-medium text-muted-foreground">
+                            {t(($) => $.create_project.web_local_locations_heading)}
+                          </span>
+                          <div className="flex flex-wrap gap-1">
+                            {selectedDaemonLocations.map((location) => (
+                              <Button
+                                key={location.id}
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="h-7 max-w-full text-caption"
+                                title={location.path}
+                                onClick={() => handleWebLocalPathChange(location.path)}
+                              >
+                                <FolderOpen className="size-3 shrink-0" />
+                                <span className="truncate">{location.label}</span>
+                              </Button>
+                            ))}
+                          </div>
+                          <p className="text-micro text-muted-foreground">
+                            {t(($) => $.create_project.web_local_locations_hint)}
+                          </p>
+                        </div>
+                      )}
                       <label className="block space-y-1 text-caption">
                         <span className="font-medium text-muted-foreground">
                           {t(($) => $.create_project.web_local_path_label)}

@@ -149,6 +149,8 @@
     ,"web_local_runtime_required": "Choose a runtime computer before adding this folder."
     ,"web_local_path_required": "Enter an absolute folder path before adding it."
     ,"web_local_hint": "Enter a directory that already exists on the selected computer. Browsers cannot browse a remote filesystem; the daemon validates access when the run starts. Direct mode uses this checkout without cloning and allows one run at a time."
+    ,"web_local_locations_heading": "Project locations"
+    ,"web_local_locations_hint": "Choose a starting location, then enter its project subfolder."
   },
   "create_issue": {
     "sr_manual": "New Issue",
