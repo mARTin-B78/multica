@@ -111,6 +111,8 @@ export function ProjectResourcesSection({ projectId }: { projectId: string }) {
   const [addOpen, setAddOpen] = useState(false);
   const [repoSearch, setRepoSearch] = useState("");
   const [picking, setPicking] = useState(false);
+  const [webLocalDaemonId, setWebLocalDaemonId] = useState<string | null>(null);
+  const [webLocalPath, setWebLocalPath] = useState("");
   const [modeDialog, setModeDialog] = useState<ModeDialogState | null>(null);
   const [modeSaving, setModeSaving] = useState(false);
   const [modeError, setModeError] = useState<string | null>(null);
@@ -135,6 +137,22 @@ export function ProjectResourcesSection({ projectId }: { projectId: string }) {
   // what told a user on the newest release to upgrade it (#7113). The save is
   // gated server-side and surfaced here as an inline error instead.
   const { data: runtimes = [] } = useQuery(runtimeListOptions(wsId));
+  const webDaemons = Array.from(
+    new Map(
+      runtimes
+        .filter((runtime) => runtime.status === "online" && runtime.daemon_id)
+        .map((runtime) => [
+          runtime.daemon_id as string,
+          {
+            id: runtime.daemon_id as string,
+            label: runtime.custom_name || runtime.device_info || runtime.name,
+          },
+        ]),
+    ).values(),
+  );
+  const selectedDaemonId = desktopMode
+    ? localDaemonId
+    : (webLocalDaemonId ?? webDaemons[0]?.id ?? null);
   // The one thing the client must still check up front: whether this server
   // performs that gate at all. One declared boolean, no inference — servers
   // that predate it drop execution_mode and answer 201.
@@ -156,7 +174,7 @@ export function ProjectResourcesSection({ projectId }: { projectId: string }) {
   const attachedLocalPaths = new Set(
     resources
       .filter(isLocalDirectoryRef)
-      .filter((r) => r.resource_ref.daemon_id === localDaemonId)
+      .filter((r) => r.resource_ref.daemon_id === selectedDaemonId)
       .map((r) => r.resource_ref.local_path),
   );
   // Per (project, daemon) we allow at most one local_directory — the
@@ -167,7 +185,7 @@ export function ProjectResourcesSection({ projectId }: { projectId: string }) {
   // current daemon, otherwise users would only discover the limit on a
   // 409 toast.
   const hasLocalDirectoryForCurrentDaemon =
-    localDaemonId !== null && attachedLocalPaths.size > 0;
+    selectedDaemonId !== null && attachedLocalPaths.size > 0;
 
   const repoQuery = repoSearch.trim().toLowerCase();
   const filteredRepos =
@@ -263,6 +281,32 @@ export function ProjectResourcesSection({ projectId }: { projectId: string }) {
     }
   };
 
+  const handleAttachWebLocalDirectory = () => {
+    const path = webLocalPath.trim();
+    if (!selectedDaemonId) {
+      toast.error(t(($) => $.resources.toast_local_daemon_not_running));
+      return;
+    }
+    if (!path.startsWith("/")) {
+      toast.error(t(($) => $.resources.local_validate_not_absolute));
+      return;
+    }
+    if (hasLocalDirectoryForCurrentDaemon) {
+      toast.error(t(($) => $.resources.toast_local_daemon_already_attached));
+      return;
+    }
+    setModeError(null);
+    setModeDialog({
+      path,
+      daemonId: selectedDaemonId,
+      mode: "in_place",
+      isGitRepo: undefined,
+      label: path.replace(/\/+$/, "").split("/").pop() || path,
+    });
+    setWebLocalPath("");
+    setAddOpen(false);
+  };
+
   const handleConfirmMode = async (mode: LocalDirectoryExecutionMode) => {
     if (!modeDialog || modeSaving) return;
     setModeSaving(true);
@@ -284,12 +328,12 @@ export function ProjectResourcesSection({ projectId }: { projectId: string }) {
         });
         toast.success(t(($) => $.resources.toast_local_mode_updated));
       } else {
-        if (!localDaemonId) return;
+        if (!modeDialog.daemonId) return;
         await createResource.mutateAsync({
           resource_type: "local_directory",
           resource_ref: {
             local_path: modeDialog.path,
-            daemon_id: localDaemonId,
+            daemon_id: modeDialog.daemonId,
             label: modeDialog.label ?? modeDialog.path,
             execution_mode: mode,
           },
@@ -488,6 +532,62 @@ export function ProjectResourcesSection({ projectId }: { projectId: string }) {
                   setAddOpen(false);
                 }}
               />
+              {!desktopMode && (
+                <div className="space-y-2 border-t pt-2">
+                  <div className="text-caption font-medium text-muted-foreground">
+                    {t(($) => $.resources.add_local_directory_button)}
+                  </div>
+                  <label className="block space-y-1 text-caption">
+                    <span className="font-medium text-muted-foreground">
+                      {t(($) => $.resources.local_web_runtime_label)}
+                    </span>
+                    <select
+                      value={selectedDaemonId ?? ""}
+                      onChange={(event) => setWebLocalDaemonId(event.target.value || null)}
+                      className="h-8 w-full rounded-md border bg-transparent px-2 text-caption outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    >
+                      <option value="">
+                        {t(($) => $.resources.local_web_runtime_placeholder)}
+                      </option>
+                      {webDaemons.map((daemon) => (
+                        <option key={daemon.id} value={daemon.id}>
+                          {daemon.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block space-y-1 text-caption">
+                    <span className="font-medium text-muted-foreground">
+                      {t(($) => $.resources.local_web_path_label)}
+                    </span>
+                    <input
+                      type="text"
+                      value={webLocalPath}
+                      onChange={(event) => setWebLocalPath(event.target.value)}
+                      placeholder={t(($) => $.resources.local_web_path_placeholder)}
+                      className="h-8 w-full rounded-md border bg-transparent px-2 font-mono text-caption outline-none placeholder:font-sans placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring"
+                    />
+                  </label>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="w-full text-caption"
+                    disabled={!selectedDaemonId || !webLocalPath.trim() || hasLocalDirectoryForCurrentDaemon}
+                    onClick={handleAttachWebLocalDirectory}
+                  >
+                    <FolderOpen className="size-3" />
+                    {t(($) => $.resources.mode_add)}
+                  </Button>
+                  {hasLocalDirectoryForCurrentDaemon && (
+                    <p className="text-micro text-amber-600 dark:text-amber-400">
+                      {t(($) => $.resources.local_daemon_already_attached_hint)}
+                    </p>
+                  )}
+                  <p className="text-micro text-muted-foreground">
+                    {t(($) => $.resources.local_web_hint)}
+                  </p>
+                </div>
+              )}
             </PopoverContent>
           </Popover>
           {desktopMode && (
