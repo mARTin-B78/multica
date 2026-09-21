@@ -24,6 +24,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/multica-ai/multica/server/internal/integrations/vcs"
 	"github.com/multica-ai/multica/server/internal/issuestatus"
 	"github.com/multica-ai/multica/server/internal/middleware"
 	db "github.com/multica-ai/multica/server/pkg/db/generated"
@@ -1080,6 +1081,10 @@ func (h *Handler) HandleGitHubWebhook(w http.ResponseWriter, r *http.Request) {
 		h.handleInstallationEvent(ctx, body)
 	case "pull_request":
 		h.handlePullRequestEvent(ctx, body)
+	case "issues":
+		h.handleGitHubIssueEvent(ctx, body)
+	case "issue_comment":
+		h.handleGitHubIssueCommentEvent(ctx, body)
 	case "check_suite", "check_run", "status":
 		// CI events are pure triggers under Plan C (MUL-5265): their payload is
 		// never read for display. Each just asks the API pipeline to re-fetch
@@ -1090,6 +1095,76 @@ func (h *Handler) HandleGitHubWebhook(w http.ResponseWriter, r *http.Request) {
 		// but ignore types we don't model.
 	}
 	w.WriteHeader(http.StatusAccepted)
+}
+
+type ghIssuePayload struct {
+	Action string `json:"action"`
+	Issue  struct {
+		Number    int32  `json:"number"`
+		Title     string `json:"title"`
+		Body      string `json:"body"`
+		State     string `json:"state"`
+		HTMLURL   string `json:"html_url"`
+		CreatedAt string `json:"created_at"`
+		UpdatedAt string `json:"updated_at"`
+		User      struct {
+			Login string `json:"login"`
+		} `json:"user"`
+		PullRequest *struct{} `json:"pull_request"`
+	} `json:"issue"`
+	Comment struct {
+		ID        int64  `json:"id"`
+		Body      string `json:"body"`
+		HTMLURL   string `json:"html_url"`
+		CreatedAt string `json:"created_at"`
+		UpdatedAt string `json:"updated_at"`
+		User      struct {
+			Login string `json:"login"`
+		} `json:"user"`
+	} `json:"comment"`
+	Repository struct {
+		Name  string `json:"name"`
+		Owner struct {
+			Login string `json:"login"`
+		} `json:"owner"`
+	} `json:"repository"`
+	Installation struct {
+		ID int64 `json:"id"`
+	} `json:"installation"`
+}
+
+func (h *Handler) handleGitHubIssueEvent(ctx context.Context, body []byte) {
+	var p ghIssuePayload
+	if json.Unmarshal(body, &p) != nil || p.Installation.ID == 0 || p.Issue.PullRequest != nil {
+		return
+	}
+	insts, err := h.Queries.ListGitHubInstallationsByInstallationID(ctx, p.Installation.ID)
+	if err != nil {
+		return
+	}
+	ev := vcs.IssueEvent{Action: p.Action, RepoOwner: p.Repository.Owner.Login, RepoName: p.Repository.Name, Number: p.Issue.Number,
+		Title: p.Issue.Title, Body: p.Issue.Body, State: p.Issue.State, HTMLURL: p.Issue.HTMLURL, AuthorLogin: p.Issue.User.Login,
+		CreatedAt: p.Issue.CreatedAt, UpdatedAt: p.Issue.UpdatedAt}
+	for _, inst := range insts {
+		h.syncExternalIssue(ctx, inst.WorkspaceID, inst.ID, inst.ConnectedByID, "github", ev)
+	}
+}
+
+func (h *Handler) handleGitHubIssueCommentEvent(ctx context.Context, body []byte) {
+	var p ghIssuePayload
+	if json.Unmarshal(body, &p) != nil || p.Installation.ID == 0 {
+		return
+	}
+	insts, err := h.Queries.ListGitHubInstallationsByInstallationID(ctx, p.Installation.ID)
+	if err != nil {
+		return
+	}
+	ev := vcs.IssueCommentEvent{Action: p.Action, RepoOwner: p.Repository.Owner.Login, RepoName: p.Repository.Name, IssueNumber: p.Issue.Number,
+		CommentID: strconv.FormatInt(p.Comment.ID, 10), Body: p.Comment.Body, HTMLURL: p.Comment.HTMLURL, AuthorLogin: p.Comment.User.Login,
+		CreatedAt: p.Comment.CreatedAt, UpdatedAt: p.Comment.UpdatedAt, IsPullRequest: p.Issue.PullRequest != nil}
+	for _, inst := range insts {
+		h.syncExternalComment(ctx, inst.WorkspaceID, inst.ID, inst.ConnectedByID, "github", ev)
+	}
 }
 
 func verifyWebhookSignature(secret, header string, body []byte) bool {

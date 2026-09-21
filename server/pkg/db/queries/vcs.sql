@@ -51,6 +51,17 @@ cleared_statuses AS (
 ),
 cleared_prs AS (
     DELETE FROM vcs_pull_request WHERE connection_id IN (SELECT target.id FROM target)
+),
+cleared_external_comments AS (
+    DELETE FROM external_comment_link
+    WHERE external_issue_id IN (
+        SELECT external_issue_link.id FROM external_issue_link
+        WHERE external_issue_link.source_connection_id IN (SELECT target.id FROM target)
+    )
+),
+cleared_external_issues AS (
+    DELETE FROM external_issue_link
+    WHERE source_connection_id IN (SELECT target.id FROM target)
 )
 DELETE FROM vcs_connection WHERE vcs_connection.id = $1 AND vcs_connection.workspace_id = $2;
 

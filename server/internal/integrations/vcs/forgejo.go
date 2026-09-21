@@ -39,9 +39,83 @@ func (p forgejoProvider) EventKind(h http.Header) EventKind {
 		return EventPullRequest
 	case "status":
 		return EventCIStatus
+	case "issues":
+		return EventIssue
+	case "issue_comment":
+		return EventIssueComment
 	default:
 		return EventOther
 	}
+}
+
+type fjIssuePayload struct {
+	Action string `json:"action"`
+	Issue  struct {
+		Number    int32  `json:"number"`
+		Title     string `json:"title"`
+		Body      string `json:"body"`
+		State     string `json:"state"`
+		HTMLURL   string `json:"html_url"`
+		CreatedAt string `json:"created_at"`
+		UpdatedAt string `json:"updated_at"`
+		User      struct {
+			Login    string `json:"login"`
+			UserName string `json:"username"`
+		} `json:"user"`
+		PullRequest any `json:"pull_request"`
+	} `json:"issue"`
+	Comment struct {
+		ID        int64  `json:"id"`
+		Body      string `json:"body"`
+		HTMLURL   string `json:"html_url"`
+		CreatedAt string `json:"created_at"`
+		UpdatedAt string `json:"updated_at"`
+		User      struct {
+			Login    string `json:"login"`
+			UserName string `json:"username"`
+		} `json:"user"`
+	} `json:"comment"`
+	Repository struct {
+		Name     string `json:"name"`
+		FullName string `json:"full_name"`
+		Owner    struct {
+			Login    string `json:"login"`
+			UserName string `json:"username"`
+		} `json:"owner"`
+	} `json:"repository"`
+}
+
+func fjRepoIdentity(d fjIssuePayload) (string, string) {
+	owner := coalesce(d.Repository.Owner.UserName, d.Repository.Owner.Login)
+	if owner == "" {
+		if i := strings.Index(d.Repository.FullName, "/"); i > 0 {
+			owner = d.Repository.FullName[:i]
+		}
+	}
+	return owner, d.Repository.Name
+}
+
+func (p forgejoProvider) ParseIssue(body []byte) (IssueEvent, error) {
+	var d fjIssuePayload
+	if err := json.Unmarshal(body, &d); err != nil {
+		return IssueEvent{}, err
+	}
+	owner, repo := fjRepoIdentity(d)
+	return IssueEvent{Action: d.Action, RepoOwner: owner, RepoName: repo, Number: d.Issue.Number,
+		Title: d.Issue.Title, Body: d.Issue.Body, State: d.Issue.State, HTMLURL: d.Issue.HTMLURL,
+		AuthorLogin: coalesce(d.Issue.User.UserName, d.Issue.User.Login), CreatedAt: d.Issue.CreatedAt, UpdatedAt: d.Issue.UpdatedAt}, nil
+}
+
+func (p forgejoProvider) ParseIssueComment(body []byte) (IssueCommentEvent, error) {
+	var d fjIssuePayload
+	if err := json.Unmarshal(body, &d); err != nil {
+		return IssueCommentEvent{}, err
+	}
+	owner, repo := fjRepoIdentity(d)
+	return IssueCommentEvent{Action: d.Action, RepoOwner: owner, RepoName: repo, IssueNumber: d.Issue.Number,
+		CommentID: fmt.Sprint(d.Comment.ID), Body: d.Comment.Body, HTMLURL: d.Comment.HTMLURL,
+		AuthorLogin: coalesce(d.Comment.User.UserName, d.Comment.User.Login), CreatedAt: d.Comment.CreatedAt,
+		UpdatedAt: d.Comment.UpdatedAt, IsPullRequest: d.Issue.PullRequest != nil}, nil
 }
 
 // VerifySignature checks X-Gitea-Signature, a bare hex HMAC-SHA256 of the body

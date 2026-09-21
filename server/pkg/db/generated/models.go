@@ -648,6 +648,29 @@ type DingtalkGroupRoute struct {
 	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
 }
 
+type ExternalCommentLink struct {
+	ID                pgtype.UUID        `json:"id"`
+	ExternalIssueID   pgtype.UUID        `json:"external_issue_id"`
+	ExternalCommentID string             `json:"external_comment_id"`
+	CommentID         pgtype.UUID        `json:"comment_id"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+}
+
+type ExternalIssueLink struct {
+	ID                 pgtype.UUID        `json:"id"`
+	WorkspaceID        pgtype.UUID        `json:"workspace_id"`
+	Provider           string             `json:"provider"`
+	SourceConnectionID pgtype.UUID        `json:"source_connection_id"`
+	RepoOwner          string             `json:"repo_owner"`
+	RepoName           string             `json:"repo_name"`
+	IssueNumber        int32              `json:"issue_number"`
+	IssueID            pgtype.UUID        `json:"issue_id"`
+	HtmlUrl            string             `json:"html_url"`
+	ExternalUpdatedAt  pgtype.Timestamptz `json:"external_updated_at"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Feedback struct {
 	ID          pgtype.UUID        `json:"id"`
 	UserID      pgtype.UUID        `json:"user_id"`

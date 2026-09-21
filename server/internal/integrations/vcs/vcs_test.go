@@ -135,6 +135,55 @@ func TestForgejoEventKindAndParse(t *testing.T) {
 	}
 }
 
+func TestForgejoIssueAndCommentParse(t *testing.T) {
+	p, _ := For("gitea")
+	parser := p.(IssueParser)
+	h := http.Header{}
+	h.Set("X-Gitea-Event", "issues")
+	if p.EventKind(h) != EventIssue {
+		t.Fatal("issues not classified")
+	}
+	issue, err := parser.ParseIssue([]byte(`{
+		"action":"opened","issue":{"number":12,"title":"Broken build","body":"details","state":"open","html_url":"https://g/acme/widget/issues/12","user":{"username":"alice"}},
+		"repository":{"name":"widget","owner":{"username":"acme"}}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if issue.RepoOwner != "acme" || issue.RepoName != "widget" || issue.Number != 12 || issue.AuthorLogin != "alice" {
+		t.Fatalf("bad issue: %+v", issue)
+	}
+	h.Set("X-Gitea-Event", "issue_comment")
+	if p.EventKind(h) != EventIssueComment {
+		t.Fatal("issue_comment not classified")
+	}
+	comment, err := parser.ParseIssueComment([]byte(`{
+		"action":"created","issue":{"number":12},"comment":{"id":99,"body":"fixed","user":{"login":"bob"}},
+		"repository":{"name":"widget","owner":{"login":"acme"}}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if comment.CommentID != "99" || comment.IssueNumber != 12 || comment.Body != "fixed" || comment.AuthorLogin != "bob" {
+		t.Fatalf("bad comment: %+v", comment)
+	}
+}
+
+func TestForgejoIssueCommentWrite(t *testing.T) {
+	var gotMethod, gotPath, gotAuth string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotMethod, gotPath, gotAuth = r.Method, r.URL.Path, r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":73}`))
+	}))
+	defer srv.Close()
+	id, err := CreateIssueComment(context.Background(), srv.URL, "secret", "acme", "widget", 12, "done")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id != "73" || gotMethod != "POST" || gotPath != "/api/v1/repos/acme/widget/issues/12/comments" || gotAuth != "token secret" {
+		t.Fatalf("id=%s method=%s path=%s auth=%s", id, gotMethod, gotPath, gotAuth)
+	}
+}
+
 func TestGitlabParse(t *testing.T) {
 	p, _ := For("gitlab")
 	h := http.Header{}

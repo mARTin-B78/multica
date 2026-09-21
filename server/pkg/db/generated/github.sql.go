@@ -60,7 +60,18 @@ func (q *Queries) CreateGitHubInstallation(ctx context.Context, arg CreateGitHub
 }
 
 const deleteGitHubInstallation = `-- name: DeleteGitHubInstallation :exec
-DELETE FROM github_installation WHERE id = $1 AND workspace_id = $2
+WITH target AS (
+    SELECT gi.id FROM github_installation gi WHERE gi.id = $1 AND gi.workspace_id = $2
+), cleared_comments AS (
+    DELETE FROM external_comment_link
+    WHERE external_issue_id IN (
+        SELECT external_issue_link.id FROM external_issue_link
+        WHERE external_issue_link.source_connection_id IN (SELECT target.id FROM target)
+    )
+), cleared_issues AS (
+    DELETE FROM external_issue_link WHERE source_connection_id IN (SELECT target.id FROM target)
+)
+DELETE FROM github_installation gi WHERE gi.id IN (SELECT target.id FROM target)
 `
 
 type DeleteGitHubInstallationParams struct {
@@ -74,7 +85,18 @@ func (q *Queries) DeleteGitHubInstallation(ctx context.Context, arg DeleteGitHub
 }
 
 const deleteGitHubInstallationByInstallationID = `-- name: DeleteGitHubInstallationByInstallationID :many
-DELETE FROM github_installation WHERE installation_id = $1
+WITH target AS (
+    SELECT gi.id FROM github_installation gi WHERE gi.installation_id = $1
+), cleared_comments AS (
+    DELETE FROM external_comment_link
+    WHERE external_issue_id IN (
+        SELECT external_issue_link.id FROM external_issue_link
+        WHERE external_issue_link.source_connection_id IN (SELECT target.id FROM target)
+    )
+), cleared_issues AS (
+    DELETE FROM external_issue_link WHERE source_connection_id IN (SELECT target.id FROM target)
+)
+DELETE FROM github_installation gi WHERE gi.id IN (SELECT target.id FROM target)
 RETURNING id, workspace_id
 `
 

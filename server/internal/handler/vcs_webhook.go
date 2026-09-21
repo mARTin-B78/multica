@@ -149,6 +149,26 @@ func (h *Handler) HandleVCSWebhook(w http.ResponseWriter, r *http.Request) {
 		} else {
 			h.mirrorVCSCIStatus(r.Context(), conn, st)
 		}
+	case vcs.EventIssue:
+		parser, ok := provider.(vcs.IssueParser)
+		if !ok {
+			break
+		}
+		if issue, err := parser.ParseIssue(body); err != nil {
+			slog.Warn("vcs: bad issue payload", "provider", conn.Provider, "err", err)
+		} else {
+			h.syncExternalIssue(r.Context(), conn.WorkspaceID, conn.ID, conn.ConnectedByID, conn.Provider, issue)
+		}
+	case vcs.EventIssueComment:
+		parser, ok := provider.(vcs.IssueParser)
+		if !ok {
+			break
+		}
+		if comment, err := parser.ParseIssueComment(body); err != nil {
+			slog.Warn("vcs: bad issue_comment payload", "provider", conn.Provider, "err", err)
+		} else {
+			h.syncExternalComment(r.Context(), conn.WorkspaceID, conn.ID, conn.ConnectedByID, conn.Provider, comment)
+		}
 	default:
 		// Acknowledge unmodelled events so the provider doesn't flag the hook.
 	}

@@ -55,10 +55,18 @@ func NewIssueService(q *db.Queries, tx TxStarter, bus *events.Bus, ac analytics.
 	}
 }
 
+func issueCreateID(requested pgtype.UUID) pgtype.UUID {
+	if requested.Valid {
+		return requested
+	}
+	return dbid.NewV7()
+}
+
 // IssueCreateParams carries the already-validated, already-resolved inputs
 // to IssueService.Create. The handler owns the parsing step that turns its
 // request payload into this struct; the service stays transport-agnostic.
 type IssueCreateParams struct {
+	ID            pgtype.UUID
 	WorkspaceID   pgtype.UUID
 	Title         string
 	Description   pgtype.Text
@@ -337,7 +345,7 @@ func (s *IssueService) Create(ctx context.Context, p IssueCreateParams, opts Iss
 	var assignedTask db.AgentTaskQueue
 	if p.OriginType.Valid {
 		issue, err = qtx.CreateIssueWithOrigin(ctx, db.CreateIssueWithOriginParams{
-			ID:            dbid.NewV7(),
+			ID:            issueCreateID(p.ID),
 			WorkspaceID:   p.WorkspaceID,
 			Title:         p.Title,
 			Description:   p.Description,
@@ -359,7 +367,7 @@ func (s *IssueService) Create(ctx context.Context, p IssueCreateParams, opts Iss
 		})
 	} else {
 		issue, err = qtx.CreateIssue(ctx, db.CreateIssueParams{
-			ID:            dbid.NewV7(),
+			ID:            issueCreateID(p.ID),
 			WorkspaceID:   p.WorkspaceID,
 			Title:         p.Title,
 			Description:   p.Description,

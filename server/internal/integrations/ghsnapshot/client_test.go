@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -61,6 +62,29 @@ func TestInstallationTokenCaches(t *testing.T) {
 	}
 	if got := atomic.LoadInt32(&mints); got != 1 {
 		t.Fatalf("minted %d times, want 1 (cache miss)", got)
+	}
+}
+
+func TestIssueWritesUseInstallationToken(t *testing.T) {
+	var gotMethod, gotPath, gotAuth, gotBody string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/access_tokens") {
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"token":"ghs_secret","expires_at":"` + time.Now().Add(time.Hour).UTC().Format(time.RFC3339) + `"}`))
+			return
+		}
+		gotMethod, gotPath, gotAuth = r.Method, r.URL.Path, r.Header.Get("Authorization")
+		b, _ := io.ReadAll(r.Body)
+		gotBody = string(b)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+	c := newTestClient(t, srv.URL)
+	if err := c.UpdateIssue(context.Background(), 42, "acme", "widget", 7, "title", "body", "closed"); err != nil {
+		t.Fatal(err)
+	}
+	if gotMethod != "PATCH" || gotPath != "/repos/acme/widget/issues/7" || gotAuth != "Bearer ghs_secret" || !strings.Contains(gotBody, `"state":"closed"`) {
+		t.Fatalf("request method=%s path=%s auth=%s body=%s", gotMethod, gotPath, gotAuth, gotBody)
 	}
 }
 

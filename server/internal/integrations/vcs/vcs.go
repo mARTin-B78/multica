@@ -49,7 +49,27 @@ const (
 	EventOther EventKind = iota
 	EventPullRequest
 	EventCIStatus
+	EventIssue
+	EventIssueComment
 )
+
+type IssueEvent struct {
+	Action, RepoOwner, RepoName, Title, Body, State, HTMLURL string
+	Number                                                   int32
+	AuthorLogin, CreatedAt, UpdatedAt                        string
+}
+
+type IssueCommentEvent struct {
+	Action, RepoOwner, RepoName, Body, HTMLURL, AuthorLogin, CreatedAt, UpdatedAt string
+	IssueNumber                                                                   int32
+	CommentID                                                                     string
+	IsPullRequest                                                                 bool
+}
+
+type IssueParser interface {
+	ParseIssue([]byte) (IssueEvent, error)
+	ParseIssueComment([]byte) (IssueCommentEvent, error)
+}
 
 // PullRequestEvent is the provider-agnostic shape of a pull/merge request
 // webhook. State is already normalized to one of open/closed/merged/draft, so

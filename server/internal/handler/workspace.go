@@ -1258,6 +1258,10 @@ func (h *Handler) DeleteWorkspace(w http.ResponseWriter, r *http.Request) {
 			},
 		},
 		{
+			name: "delete external issue links",
+			run:  func() error { return qtx.DeleteExternalIssueLinksForWorkspace(ctx, requester.WorkspaceID) },
+		},
+		{
 			name: "delete issue roots",
 			run:  func() error { return qtx.DeleteWorkspaceIssueRoots(ctx, requester.WorkspaceID) },
 		},
