@@ -66,6 +66,16 @@ import {
   PluginPreviewSchema,
   EMPTY_PLUGIN_INSTALLATION_LIST,
   EMPTY_PLUGIN_PREVIEW,
+  LiteLLMConnectionSchema,
+  ListLiteLLMModelsResponseSchema,
+  ListLiteLLMAgentsResponseSchema,
+  ListLiteLLMSkillsResponseSchema,
+  ListLiteLLMMCPServersResponseSchema,
+  EMPTY_LITELLM_CONNECTION,
+  EMPTY_LITELLM_MODELS,
+  EMPTY_LITELLM_AGENTS,
+  EMPTY_LITELLM_SKILLS,
+  EMPTY_LITELLM_MCP_SERVERS,
 } from "./schemas";
 import { IssueViewSchema, IssueViewListSchema } from "./schemas";
 import {
@@ -2353,5 +2363,43 @@ describe("AgentActivityBucketListSchema duration", () => {
     expect(parsed[0]?.task_count).toBe(201);
     expect(parsed[0]?.duration_ms).toBeUndefined();
     expect(parsed[0]?.duration_count).toBeUndefined();
+  });
+});
+
+describe("LiteLLM response schemas", () => {
+  it("falls back safely when the connection response is malformed", () => {
+    expect(parseWithFallback(
+      { connected: "yes" },
+      LiteLLMConnectionSchema,
+      EMPTY_LITELLM_CONNECTION,
+      { endpoint: "GET /api/workspaces/{id}/litellm/connection" },
+    )).toEqual(EMPTY_LITELLM_CONNECTION);
+  });
+
+  it("falls back safely when a hub response is malformed", () => {
+    expect(parseWithFallback(
+      { models: [{ id: 42 }] },
+      ListLiteLLMModelsResponseSchema,
+      EMPTY_LITELLM_MODELS,
+      { endpoint: "GET /api/workspaces/{id}/litellm/models" },
+    )).toEqual(EMPTY_LITELLM_MODELS);
+    expect(parseWithFallback(
+      { agents: "nope" },
+      ListLiteLLMAgentsResponseSchema,
+      EMPTY_LITELLM_AGENTS,
+      { endpoint: "GET /api/workspaces/{id}/litellm/agents" },
+    )).toEqual(EMPTY_LITELLM_AGENTS);
+    expect(parseWithFallback(
+      { skills: "nope" },
+      ListLiteLLMSkillsResponseSchema,
+      EMPTY_LITELLM_SKILLS,
+      { endpoint: "GET /api/workspaces/{id}/litellm/skills" },
+    )).toEqual(EMPTY_LITELLM_SKILLS);
+    expect(parseWithFallback(
+      { servers: [{ server_name: 42 }] },
+      ListLiteLLMMCPServersResponseSchema,
+      EMPTY_LITELLM_MCP_SERVERS,
+      { endpoint: "GET /api/workspaces/{id}/litellm/mcp-servers" },
+    )).toEqual(EMPTY_LITELLM_MCP_SERVERS);
   });
 });

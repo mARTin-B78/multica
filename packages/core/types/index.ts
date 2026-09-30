@@ -93,6 +93,19 @@ export type {
 export { RUNTIME_PROFILE_PROTOCOL_FAMILIES, RUNTIME_PROFILE_RUNTIME_TYPES } from "./agent";
 export type { Workspace, WorkspaceRepo, WorkspaceMcpServer, Member, MemberRole, User, MemberWithUser, Invitation, ShareLink, ShareLinkInfo } from "./workspace";
 export type {
+  LiteLLMConnection,
+  ConnectLiteLLMRequest,
+  LiteLLMModel,
+  ListLiteLLMModelsResponse,
+  LiteLLMAgent,
+  ListLiteLLMAgentsResponse,
+  LiteLLMSkill,
+  ListLiteLLMSkillsResponse,
+  LiteLLMMCPServer,
+  ListLiteLLMMCPServersResponse,
+  LiteLLMPublishedResource,
+} from "./litellm";
+export type {
   PluginInstallation,
   PluginConfigField,
   PluginConfigFieldType,

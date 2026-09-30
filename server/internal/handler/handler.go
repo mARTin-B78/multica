@@ -404,6 +404,9 @@ type Handler struct {
 	// error rather than silently storing plaintext. Wired in
 	// cmd/server/router.go after New.
 	VCSSecretBox *secretbox.Box
+	// LiteLLMSecretBox encrypts each workspace's gateway API key at rest.
+	// Nil keeps connection writes disabled rather than storing plaintext.
+	LiteLLMSecretBox *secretbox.Box
 	// PluginSurfaceTokens seal short-lived launch claims. Nil disables surface
 	// launches; wired from a domain-separated MULTICA_PLUGIN_SECRET_KEY at boot.
 	PluginSurfaceTokens *secretbox.Box

@@ -1309,6 +1309,21 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 		slog.Info("vcs integration disabled (MULTICA_VCS_SECRET_KEY not set)")
 	}
 
+	// LiteLLM gateway credentials are workspace-scoped and encrypted at rest.
+	// Without this deployment key the integration stays visible for discovery,
+	// but connection writes fail closed with a configuration hint.
+	if liteLLMKey, err := secretbox.LoadKey("MULTICA_LITELLM_SECRET_KEY"); err == nil {
+		box, err := secretbox.New(liteLLMKey)
+		if err != nil {
+			slog.Error("litellm: secretbox.New failed; integration disabled", "error", err)
+		} else {
+			h.LiteLLMSecretBox = box
+			slog.Info("litellm integration enabled")
+		}
+	} else {
+		slog.Info("litellm integration disabled (MULTICA_LITELLM_SECRET_KEY not set)")
+	}
+
 	// Plugin secrets use a dedicated deployment key. Keeping this separate from
 	// VCS and channel secrets gives operators an isolated rotation and blast
 	// radius; without it, saving a `secret` config field fails closed rather
@@ -1711,6 +1726,11 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 					// for the same reason as GitHub installations; connect /
 					// disconnect are admin-gated in the group below.
 					r.Get("/vcs/connections", h.ListVCSConnections)
+					r.Get("/litellm/connection", h.ListLiteLLMConnection)
+					r.Get("/litellm/models", h.ListLiteLLMModels)
+					r.Get("/litellm/agents", h.ListLiteLLMAgents)
+					r.Get("/litellm/skills", h.ListLiteLLMSkills)
+					r.Get("/litellm/mcp-servers", h.ListLiteLLMMCPServers)
 					// Custom runtime profiles — listing/reading is member-visible
 					// (the Runtime page renders for everyone; create/edit/delete
 					// are admin-gated below).
@@ -1747,6 +1767,12 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 					r.Post("/mcp-servers", h.CreateWorkspaceMcpServer)
 					r.Put("/mcp-servers/{serverId}", h.UpdateWorkspaceMcpServer)
 					r.Delete("/mcp-servers/{serverId}", h.DeleteWorkspaceMcpServer)
+					r.Post("/litellm/connection", h.ConnectLiteLLM)
+					r.Delete("/litellm/connection", h.DeleteLiteLLMConnection)
+					r.With(handler.RequireHumanActor).Put("/litellm/management-key", h.UpdateLiteLLMManagementKey)
+					r.Post("/litellm/mcp-servers/{serverName}/import", h.ImportLiteLLMMCPServer)
+					r.With(handler.RequireHumanActor).Post("/litellm/mcp-servers/{serverId}/publish", h.PublishLiteLLMMCPServer)
+					r.With(handler.RequireHumanActor).Post("/litellm/skills/{skillId}/publish", h.PublishLiteLLMSkill)
 					r.Post("/share-links", h.CreateShareLink)
 					r.Delete("/share-links/{linkId}", h.RevokeShareLink)
 					r.Get("/share-links", h.ListShareLinks)

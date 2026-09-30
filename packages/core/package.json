@@ -123,6 +123,8 @@
     "./github/queries": "./github/queries.ts",
     "./vcs": "./vcs/index.ts",
     "./vcs/queries": "./vcs/queries.ts",
+    "./litellm": "./litellm/index.ts",
+    "./litellm/queries": "./litellm/queries.ts",
     "./lark": "./lark/index.ts",
     "./lark/queries": "./lark/queries.ts",
     "./composio": "./composio/index.ts",

@@ -24,6 +24,7 @@ import {
   Users,
   X,
   Zap,
+  Waypoints,
 } from "lucide-react";
 import { useAuthStore } from "@multica/core/auth";
 import { useCurrentWorkspace } from "@multica/core/paths";
@@ -54,9 +55,10 @@ import { PropertiesTab } from "./properties-tab";
 import { QuickActionsTab } from "./quick-actions-tab";
 import { KeyboardShortcutsTab } from "./keyboard-shortcuts-tab";
 import { PluginsTab } from "./plugins-tab";
+import { LiteLLMTab } from "./litellm-tab";
 import { McpTab } from "./mcp-tab";
 import { BillingTab } from "./billing-tab";
-import { SETTINGS_ANCHOR_ATTR } from "./settings-layout";
+import { SETTINGS_ANCHOR_ATTR, SettingsTab } from "./settings-layout";
 import { searchSettings } from "./settings-search";
 import { HighlightText } from "../../search/highlight-text";
 import { useSettingsSearchIndex } from "./use-settings-search-index";
@@ -251,6 +253,19 @@ export function SettingsPage({ extraDeviceTabs = [] }: SettingsPageProps = {}) {
             entry("mcp", t(($) => $.page.tabs.mcp), Server, <McpTab />, {
               adminOnly: true,
             }),
+            entry(
+              "litellm",
+              "LiteLLM",
+              Waypoints,
+              <SettingsTab
+                title="LiteLLM"
+                description={t(($) => $.litellm.connect_description)}
+                scope="workspace"
+              >
+                <LiteLLMTab />
+              </SettingsTab>,
+              { adminOnly: true },
+            ),
             ...(pluginsEnabled
               ? [
                   entry("plugins", t(($) => $.page.tabs.plugins), Blocks, <PluginsTab />, {

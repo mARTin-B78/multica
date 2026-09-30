@@ -43,6 +43,13 @@ vi.mock("@multica/core/runtimes", () => ({
     mockRefreshRuntimeModels(...args),
 }));
 
+const mockLiteLLMModels = vi.hoisted(() => ({
+  current: [] as { id: string; label: string; provider: string }[],
+}));
+vi.mock("./use-litellm-models", () => ({
+  useLiteLLMModels: () => mockLiteLLMModels.current,
+}));
+
 // Bumped per test so React Query cannot serve a previous case's cached result.
 let discoveryKey = 0;
 
@@ -84,6 +91,21 @@ describe("ModelDropdown", () => {
     discovery = async () => CODEX_MODELS;
     mockRefreshRuntimeModels.mockReset();
     discoveryKey += 1;
+    mockLiteLLMModels.current = [];
+  });
+
+  it("lists LiteLLM aliases in their own group and skips ids the runtime already reports", async () => {
+    mockLiteLLMModels.current = [
+      { id: "qwen-coder", label: "Qwen Coder", provider: "LiteLLM" },
+      { id: "gpt-5.6-sol", label: "dup", provider: "LiteLLM" },
+    ];
+    const { container, onChange } = renderDropdown();
+    openDropdown(container);
+
+    expect(await screen.findByText("LiteLLM")).toBeTruthy();
+    expect(screen.queryByText("dup")).toBeNull();
+    fireEvent.click(screen.getByText("Qwen Coder"));
+    expect(onChange).toHaveBeenCalledWith("qwen-coder");
   });
 
   it("offers the gpt-5.6 Codex models and submits their canonical IDs", async () => {
