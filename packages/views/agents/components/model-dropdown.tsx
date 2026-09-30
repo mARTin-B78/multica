@@ -17,6 +17,7 @@ import { Label } from "@multica/ui/components/ui/label";
 import { useT } from "../../i18n";
 import { UnavailableModelsNote } from "./unavailable-models-note";
 import { ModelSearchHeader } from "./model-search-header";
+import { useLiteLLMModels } from "./use-litellm-models";
 
 // ModelDropdown renders a searchable, creatable model picker for an agent.
 // It fetches the supported-model catalog from the selected runtime — the
@@ -57,10 +58,18 @@ export function ModelDropdown({
   const supported = modelsQuery.data?.supported ?? true;
   // Stable reference for the model list — `?? []` would mint a fresh
   // array each render and force every downstream useMemo to invalidate.
-  const models = useMemo(
+  const runtimeModels = useMemo(
     () => modelsQuery.data?.models ?? [],
     [modelsQuery.data],
   );
+  // LiteLLM gateway aliases are offered alongside the runtime's own models; a
+  // runtime-reported id wins so the same name is never listed twice.
+  const liteLLMModels = useLiteLLMModels();
+  const models = useMemo(() => {
+    if (liteLLMModels.length === 0) return runtimeModels;
+    const seen = new Set(runtimeModels.map((m) => m.id));
+    return [...runtimeModels, ...liteLLMModels.filter((m) => !seen.has(m.id))];
+  }, [runtimeModels, liteLLMModels]);
   const grouped = useMemo(() => groupByProvider(models), [models]);
   // Advisory only — never merged into `models`, so nothing below can select one.
   const unavailableModels = useMemo(

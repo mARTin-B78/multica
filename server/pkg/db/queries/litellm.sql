@@ -16,3 +16,10 @@ RETURNING *;
 
 -- name: DeleteLiteLLMConnection :exec
 DELETE FROM litellm_connection WHERE workspace_id = $1;
+
+-- name: UpdateLiteLLMManagementKey :one
+UPDATE litellm_connection
+SET management_api_key_encrypted = $2,
+    updated_at = now()
+WHERE workspace_id = $1
+RETURNING *;

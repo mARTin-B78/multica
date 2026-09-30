@@ -54,8 +54,11 @@ import type {
   WorkspaceMcpServer,
   LiteLLMConnection,
   ConnectLiteLLMRequest,
+  ListLiteLLMModelsResponse,
+  ListLiteLLMAgentsResponse,
   ListLiteLLMSkillsResponse,
   ListLiteLLMMCPServersResponse,
+  LiteLLMPublishedResource,
   MemberWithUser,
   User,
   Skill,
@@ -445,11 +448,17 @@ import {
   WorkspaceMcpServerListSchema,
   WorkspaceMcpServerSchema,
   LiteLLMConnectionSchema,
+  ListLiteLLMModelsResponseSchema,
+  ListLiteLLMAgentsResponseSchema,
   ListLiteLLMSkillsResponseSchema,
   ListLiteLLMMCPServersResponseSchema,
+  LiteLLMPublishedResourceSchema,
   EMPTY_LITELLM_CONNECTION,
+  EMPTY_LITELLM_MODELS,
+  EMPTY_LITELLM_AGENTS,
   EMPTY_LITELLM_SKILLS,
   EMPTY_LITELLM_MCP_SERVERS,
+  EMPTY_LITELLM_PUBLISHED_RESOURCE,
   ShareLinkSchema,
   ShareLinkListResponseSchema,
   ShareLinkInfoSchema,
@@ -2637,6 +2646,27 @@ export class ApiClient {
     await this.fetch(`/api/workspaces/${workspaceId}/litellm/connection`, { method: "DELETE" });
   }
 
+  async updateLiteLLMManagementKey(workspaceId: string, apiKey: string): Promise<void> {
+    await this.fetch(`/api/workspaces/${workspaceId}/litellm/management-key`, {
+      method: "PUT",
+      body: JSON.stringify({ api_key: apiKey }),
+    });
+  }
+
+  async listLiteLLMModels(workspaceId: string): Promise<ListLiteLLMModelsResponse> {
+    const raw = await this.fetch<unknown>(`/api/workspaces/${workspaceId}/litellm/models`);
+    return parseWithFallback(raw, ListLiteLLMModelsResponseSchema, EMPTY_LITELLM_MODELS, {
+      endpoint: "GET /api/workspaces/{id}/litellm/models",
+    });
+  }
+
+  async listLiteLLMAgents(workspaceId: string): Promise<ListLiteLLMAgentsResponse> {
+    const raw = await this.fetch<unknown>(`/api/workspaces/${workspaceId}/litellm/agents`);
+    return parseWithFallback(raw, ListLiteLLMAgentsResponseSchema, EMPTY_LITELLM_AGENTS, {
+      endpoint: "GET /api/workspaces/{id}/litellm/agents",
+    });
+  }
+
   async listLiteLLMSkills(workspaceId: string): Promise<ListLiteLLMSkillsResponse> {
     const raw = await this.fetch<unknown>(`/api/workspaces/${workspaceId}/litellm/skills`);
     return parseWithFallback(raw, ListLiteLLMSkillsResponseSchema, EMPTY_LITELLM_SKILLS, {
@@ -2661,6 +2691,32 @@ export class ApiClient {
     );
     return parseWithFallback(raw, WorkspaceMcpServerSchema, EMPTY_WORKSPACE_MCP_SERVER, {
       endpoint: "POST /api/workspaces/{id}/litellm/mcp-servers/{serverName}/import",
+    });
+  }
+
+  async publishLiteLLMMCPServer(
+    workspaceId: string,
+    serverId: string,
+  ): Promise<LiteLLMPublishedResource> {
+    const raw = await this.fetch<unknown>(
+      `/api/workspaces/${workspaceId}/litellm/mcp-servers/${serverId}/publish`,
+      { method: "POST" },
+    );
+    return parseWithFallback(raw, LiteLLMPublishedResourceSchema, EMPTY_LITELLM_PUBLISHED_RESOURCE, {
+      endpoint: "POST /api/workspaces/{id}/litellm/mcp-servers/{serverId}/publish",
+    });
+  }
+
+  async publishLiteLLMSkill(
+    workspaceId: string,
+    skillId: string,
+  ): Promise<LiteLLMPublishedResource> {
+    const raw = await this.fetch<unknown>(
+      `/api/workspaces/${workspaceId}/litellm/skills/${skillId}/publish`,
+      { method: "POST" },
+    );
+    return parseWithFallback(raw, LiteLLMPublishedResourceSchema, EMPTY_LITELLM_PUBLISHED_RESOURCE, {
+      endpoint: "POST /api/workspaces/{id}/litellm/skills/{skillId}/publish",
     });
   }
 

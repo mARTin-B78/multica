@@ -1600,6 +1600,8 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 					// disconnect are admin-gated in the group below.
 					r.Get("/vcs/connections", h.ListVCSConnections)
 					r.Get("/litellm/connection", h.ListLiteLLMConnection)
+					r.Get("/litellm/models", h.ListLiteLLMModels)
+					r.Get("/litellm/agents", h.ListLiteLLMAgents)
 					r.Get("/litellm/skills", h.ListLiteLLMSkills)
 					r.Get("/litellm/mcp-servers", h.ListLiteLLMMCPServers)
 					// Custom runtime profiles — listing/reading is member-visible
@@ -1640,7 +1642,10 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 					r.Delete("/mcp-servers/{serverId}", h.DeleteWorkspaceMcpServer)
 					r.Post("/litellm/connection", h.ConnectLiteLLM)
 					r.Delete("/litellm/connection", h.DeleteLiteLLMConnection)
+					r.With(handler.RequireHumanActor).Put("/litellm/management-key", h.UpdateLiteLLMManagementKey)
 					r.Post("/litellm/mcp-servers/{serverName}/import", h.ImportLiteLLMMCPServer)
+					r.With(handler.RequireHumanActor).Post("/litellm/mcp-servers/{serverId}/publish", h.PublishLiteLLMMCPServer)
+					r.With(handler.RequireHumanActor).Post("/litellm/skills/{skillId}/publish", h.PublishLiteLLMSkill)
 					r.Post("/share-links", h.CreateShareLink)
 					r.Delete("/share-links/{linkId}", h.RevokeShareLink)
 					r.Get("/share-links", h.ListShareLinks)

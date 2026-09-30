@@ -92,10 +92,15 @@ export type { Workspace, WorkspaceRepo, WorkspaceMcpServer, Member, MemberRole, 
 export type {
   LiteLLMConnection,
   ConnectLiteLLMRequest,
+  LiteLLMModel,
+  ListLiteLLMModelsResponse,
+  LiteLLMAgent,
+  ListLiteLLMAgentsResponse,
   LiteLLMSkill,
   ListLiteLLMSkillsResponse,
   LiteLLMMCPServer,
   ListLiteLLMMCPServersResponse,
+  LiteLLMPublishedResource,
 } from "./litellm";
 export type {
   PluginInstallation,

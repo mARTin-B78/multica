@@ -66,9 +66,13 @@ import {
   EMPTY_PLUGIN_INSTALLATION_LIST,
   EMPTY_PLUGIN_PREVIEW,
   LiteLLMConnectionSchema,
+  ListLiteLLMModelsResponseSchema,
+  ListLiteLLMAgentsResponseSchema,
   ListLiteLLMSkillsResponseSchema,
   ListLiteLLMMCPServersResponseSchema,
   EMPTY_LITELLM_CONNECTION,
+  EMPTY_LITELLM_MODELS,
+  EMPTY_LITELLM_AGENTS,
   EMPTY_LITELLM_SKILLS,
   EMPTY_LITELLM_MCP_SERVERS,
 } from "./schemas";
@@ -2285,7 +2289,19 @@ describe("LiteLLM response schemas", () => {
     )).toEqual(EMPTY_LITELLM_CONNECTION);
   });
 
-  it("falls back safely when either hub response is malformed", () => {
+  it("falls back safely when a hub response is malformed", () => {
+    expect(parseWithFallback(
+      { models: [{ id: 42 }] },
+      ListLiteLLMModelsResponseSchema,
+      EMPTY_LITELLM_MODELS,
+      { endpoint: "GET /api/workspaces/{id}/litellm/models" },
+    )).toEqual(EMPTY_LITELLM_MODELS);
+    expect(parseWithFallback(
+      { agents: "nope" },
+      ListLiteLLMAgentsResponseSchema,
+      EMPTY_LITELLM_AGENTS,
+      { endpoint: "GET /api/workspaces/{id}/litellm/agents" },
+    )).toEqual(EMPTY_LITELLM_AGENTS);
     expect(parseWithFallback(
       { skills: "nope" },
       ListLiteLLMSkillsResponseSchema,

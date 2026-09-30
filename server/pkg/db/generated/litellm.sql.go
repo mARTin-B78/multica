@@ -21,7 +21,7 @@ func (q *Queries) DeleteLiteLLMConnection(ctx context.Context, workspaceID pgtyp
 }
 
 const getLiteLLMConnectionByWorkspace = `-- name: GetLiteLLMConnectionByWorkspace :one
-SELECT id, workspace_id, base_url, api_key_encrypted, connected_by_id, created_at, updated_at FROM litellm_connection WHERE workspace_id = $1
+SELECT id, workspace_id, base_url, api_key_encrypted, connected_by_id, created_at, updated_at, management_api_key_encrypted FROM litellm_connection WHERE workspace_id = $1
 `
 
 func (q *Queries) GetLiteLLMConnectionByWorkspace(ctx context.Context, workspaceID pgtype.UUID) (LitellmConnection, error) {
@@ -35,6 +35,36 @@ func (q *Queries) GetLiteLLMConnectionByWorkspace(ctx context.Context, workspace
 		&i.ConnectedByID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ManagementApiKeyEncrypted,
+	)
+	return i, err
+}
+
+const updateLiteLLMManagementKey = `-- name: UpdateLiteLLMManagementKey :one
+UPDATE litellm_connection
+SET management_api_key_encrypted = $2,
+    updated_at = now()
+WHERE workspace_id = $1
+RETURNING id, workspace_id, base_url, api_key_encrypted, connected_by_id, created_at, updated_at, management_api_key_encrypted
+`
+
+type UpdateLiteLLMManagementKeyParams struct {
+	WorkspaceID               pgtype.UUID `json:"workspace_id"`
+	ManagementApiKeyEncrypted pgtype.Text `json:"management_api_key_encrypted"`
+}
+
+func (q *Queries) UpdateLiteLLMManagementKey(ctx context.Context, arg UpdateLiteLLMManagementKeyParams) (LitellmConnection, error) {
+	row := q.db.QueryRow(ctx, updateLiteLLMManagementKey, arg.WorkspaceID, arg.ManagementApiKeyEncrypted)
+	var i LitellmConnection
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.BaseUrl,
+		&i.ApiKeyEncrypted,
+		&i.ConnectedByID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ManagementApiKeyEncrypted,
 	)
 	return i, err
 }
@@ -50,7 +80,7 @@ ON CONFLICT (workspace_id) DO UPDATE SET
     api_key_encrypted = EXCLUDED.api_key_encrypted,
     connected_by_id = EXCLUDED.connected_by_id,
     updated_at = now()
-RETURNING id, workspace_id, base_url, api_key_encrypted, connected_by_id, created_at, updated_at
+RETURNING id, workspace_id, base_url, api_key_encrypted, connected_by_id, created_at, updated_at, management_api_key_encrypted
 `
 
 type UpsertLiteLLMConnectionParams struct {
@@ -76,6 +106,7 @@ func (q *Queries) UpsertLiteLLMConnection(ctx context.Context, arg UpsertLiteLLM
 		&i.ConnectedByID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ManagementApiKeyEncrypted,
 	)
 	return i, err
 }

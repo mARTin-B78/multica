@@ -88,8 +88,11 @@ import type {
   WebhookDelivery,
   WorkspaceMcpServer,
   LiteLLMConnection,
+  ListLiteLLMModelsResponse,
+  ListLiteLLMAgentsResponse,
   ListLiteLLMSkillsResponse,
   ListLiteLLMMCPServersResponse,
+  LiteLLMPublishedResource,
 } from "../types";
 import type { CloudRuntimeNode } from "../runtimes/cloud-runtime";
 import type { CreateFeedbackResponse } from "../feedback/types";
@@ -3312,7 +3315,10 @@ export const LiteLLMConnectionSchema = z.object({
   connected: z.boolean().default(false),
   configured: z.boolean().default(false),
   can_manage: z.boolean().default(false),
+  management_configured: z.boolean().default(false),
   base_url: z.string().optional(),
+  model_count: z.number().int().nonnegative().default(0),
+  agent_count: z.number().int().nonnegative().default(0),
   skill_count: z.number().int().nonnegative().default(0),
   mcp_count: z.number().int().nonnegative().default(0),
 }).loose();
@@ -3321,9 +3327,41 @@ export const EMPTY_LITELLM_CONNECTION: LiteLLMConnection = {
   connected: false,
   configured: false,
   can_manage: false,
+  management_configured: false,
+  model_count: 0,
+  agent_count: 0,
   skill_count: 0,
   mcp_count: 0,
 };
+
+export const LiteLLMModelSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  provider: z.string().default(""),
+  mode: z.string().default(""),
+  description: z.string().default(""),
+}).loose();
+
+export const ListLiteLLMModelsResponseSchema = z.object({
+  models: z.array(LiteLLMModelSchema).default([]),
+}).loose();
+
+export const EMPTY_LITELLM_MODELS: ListLiteLLMModelsResponse = { models: [] };
+
+export const LiteLLMAgentSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string().default(""),
+  url: z.string().default(""),
+  version: z.string().default(""),
+  protocol_version: z.string().default(""),
+}).loose();
+
+export const ListLiteLLMAgentsResponseSchema = z.object({
+  agents: z.array(LiteLLMAgentSchema).default([]),
+}).loose();
+
+export const EMPTY_LITELLM_AGENTS: ListLiteLLMAgentsResponse = { agents: [] };
 
 export const LiteLLMSkillSchema = z.object({
   id: z.string(),
@@ -3340,6 +3378,7 @@ export const ListLiteLLMSkillsResponseSchema = z.object({
 export const EMPTY_LITELLM_SKILLS: ListLiteLLMSkillsResponse = { skills: [] };
 
 export const LiteLLMMCPServerSchema = z.object({
+  server_id: z.string().default(""),
   server_name: z.string(),
   alias: z.string().default(""),
   description: z.string().default(""),
@@ -3351,6 +3390,13 @@ export const ListLiteLLMMCPServersResponseSchema = z.object({
 }).loose();
 
 export const EMPTY_LITELLM_MCP_SERVERS: ListLiteLLMMCPServersResponse = { servers: [] };
+
+export const LiteLLMPublishedResourceSchema = z.object({
+  id: z.string().default(""),
+  name: z.string(),
+}).loose();
+
+export const EMPTY_LITELLM_PUBLISHED_RESOURCE: LiteLLMPublishedResource = { id: "", name: "" };
 
 // Share links. Introduced with the workspace share-link invite flow; schemas
 // mirror the API responses so malformed payloads fall back to safe defaults.

@@ -832,6 +832,7 @@ type IssuePullRequest struct {
 	LinkedByID    pgtype.UUID        `json:"linked_by_id"`
 	LinkedAt      pgtype.Timestamptz `json:"linked_at"`
 	CloseIntent   bool               `json:"close_intent"`
+	ReferenceOnly bool               `json:"reference_only"`
 }
 
 type IssueReaction struct {
@@ -909,6 +910,7 @@ type IssueVcsPullRequest struct {
 	IssueID       pgtype.UUID        `json:"issue_id"`
 	PullRequestID pgtype.UUID        `json:"pull_request_id"`
 	CloseIntent   bool               `json:"close_intent"`
+	ReferenceOnly bool               `json:"reference_only"`
 	LinkedByType  pgtype.Text        `json:"linked_by_type"`
 	LinkedByID    pgtype.UUID        `json:"linked_by_id"`
 	LinkedAt      pgtype.Timestamptz `json:"linked_at"`
@@ -1021,13 +1023,14 @@ type LarkUserBinding struct {
 }
 
 type LitellmConnection struct {
-	ID              pgtype.UUID        `json:"id"`
-	WorkspaceID     pgtype.UUID        `json:"workspace_id"`
-	BaseUrl         string             `json:"base_url"`
-	ApiKeyEncrypted string             `json:"api_key_encrypted"`
-	ConnectedByID   pgtype.UUID        `json:"connected_by_id"`
-	CreatedAt       pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	ID                        pgtype.UUID        `json:"id"`
+	WorkspaceID               pgtype.UUID        `json:"workspace_id"`
+	BaseUrl                   string             `json:"base_url"`
+	ApiKeyEncrypted           string             `json:"api_key_encrypted"`
+	ConnectedByID             pgtype.UUID        `json:"connected_by_id"`
+	CreatedAt                 pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt                 pgtype.Timestamptz `json:"updated_at"`
+	ManagementApiKeyEncrypted pgtype.Text        `json:"management_api_key_encrypted"`
 }
 
 type Member struct {
