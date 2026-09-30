@@ -9,8 +9,28 @@
 -- and once the column is gone such a row becomes indistinguishable from a real
 -- link — visible in the issue's PR list and, while its PR is in flight, blocking
 -- the issue from auto-advancing.
-DELETE FROM issue_pull_request WHERE reference_only;
-DELETE FROM issue_vcs_pull_request WHERE reference_only;
+DO $migration$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name = 'issue_pull_request'
+          AND column_name = 'reference_only'
+    ) THEN
+        DELETE FROM issue_pull_request WHERE reference_only;
+        ALTER TABLE issue_pull_request DROP COLUMN reference_only;
+    END IF;
 
-ALTER TABLE issue_pull_request DROP COLUMN reference_only;
-ALTER TABLE issue_vcs_pull_request DROP COLUMN reference_only;
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name = 'issue_vcs_pull_request'
+          AND column_name = 'reference_only'
+    ) THEN
+        DELETE FROM issue_vcs_pull_request WHERE reference_only;
+        ALTER TABLE issue_vcs_pull_request DROP COLUMN reference_only;
+    END IF;
+END
+$migration$;

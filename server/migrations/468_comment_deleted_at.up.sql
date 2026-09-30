@@ -6,4 +6,4 @@
 -- legacy parent_id cascade.
 --
 -- Nullable with no default, so this is a metadata-only change.
-ALTER TABLE comment ADD COLUMN deleted_at TIMESTAMPTZ NULL;
+ALTER TABLE comment ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
