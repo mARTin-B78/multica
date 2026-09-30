@@ -61,6 +61,9 @@ vi.mock("./wecom-tab", () => ({ WecomTab: () => <div>WeCom detail</div> }));
 vi.mock("./telegram-tab", () => ({
   TelegramTab: () => <div>Telegram detail</div>,
 }));
+vi.mock("./litellm-tab", () => ({
+  LiteLLMTab: () => <div>LiteLLM detail</div>,
+}));
 
 import { IntegrationsTab } from "./integrations-tab";
 
@@ -84,6 +87,9 @@ describe("Integration directory", () => {
       screen.getByRole("link", { name: /GitHub Connected/ }),
     ).toBeInTheDocument();
     expect(screen.queryByText("GitHub detail")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /LiteLLM Not connected/ }),
+    ).toBeInTheDocument();
     const shapes = ["lark", "slack", "dingtalk", "wecom", "telegram"].map(
       (channel) =>
         screen.getByTestId(`integration-channel-icon-${channel}`).innerHTML,
@@ -93,6 +99,11 @@ describe("Integration directory", () => {
     expect(state.push).toHaveBeenCalledWith(
       "/acme/settings?tab=integrations&integration=github",
     );
+  });
+  it("opens the LiteLLM hubs from the integration directory", () => {
+    state.search = "tab=integrations&integration=litellm";
+    renderWithI18n(<IntegrationsTab />);
+    expect(screen.getByText("LiteLLM detail")).toBeInTheDocument();
   });
   it("opens only the selected provider and offers a directory link", () => {
     state.search = "tab=integrations&integration=slack";

@@ -108,6 +108,9 @@ ws_agents AS (
 ws_skills AS (
     SELECT id FROM skill WHERE workspace_id = $1
 ),
+cleared_litellm_connection AS (
+    DELETE FROM litellm_connection WHERE workspace_id = $1
+),
 cleared_agent_label_assignments AS (
     DELETE FROM agent_to_label WHERE agent_id IN (SELECT id FROM ws_agents)
 ),

@@ -52,6 +52,10 @@ import type {
   Workspace,
   WorkspaceRepo,
   WorkspaceMcpServer,
+  LiteLLMConnection,
+  ConnectLiteLLMRequest,
+  ListLiteLLMSkillsResponse,
+  ListLiteLLMMCPServersResponse,
   MemberWithUser,
   User,
   Skill,
@@ -440,6 +444,12 @@ import {
   PluginPreviewSchema,
   WorkspaceMcpServerListSchema,
   WorkspaceMcpServerSchema,
+  LiteLLMConnectionSchema,
+  ListLiteLLMSkillsResponseSchema,
+  ListLiteLLMMCPServersResponseSchema,
+  EMPTY_LITELLM_CONNECTION,
+  EMPTY_LITELLM_SKILLS,
+  EMPTY_LITELLM_MCP_SERVERS,
   ShareLinkSchema,
   ShareLinkListResponseSchema,
   ShareLinkInfoSchema,
@@ -2600,6 +2610,57 @@ export class ApiClient {
     }
     return parseWithFallback(raw, PluginInstallationListResponseSchema, EMPTY_PLUGIN_INSTALLATION_LIST, {
       endpoint: "GET /api/workspaces/{id}/plugins",
+    });
+  }
+
+  async getLiteLLMConnection(workspaceId: string): Promise<LiteLLMConnection> {
+    const raw = await this.fetch<unknown>(`/api/workspaces/${workspaceId}/litellm/connection`);
+    return parseWithFallback(raw, LiteLLMConnectionSchema, EMPTY_LITELLM_CONNECTION, {
+      endpoint: "GET /api/workspaces/{id}/litellm/connection",
+    });
+  }
+
+  async connectLiteLLM(
+    workspaceId: string,
+    request: ConnectLiteLLMRequest,
+  ): Promise<LiteLLMConnection> {
+    const raw = await this.fetch<unknown>(`/api/workspaces/${workspaceId}/litellm/connection`, {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
+    return parseWithFallback(raw, LiteLLMConnectionSchema, EMPTY_LITELLM_CONNECTION, {
+      endpoint: "POST /api/workspaces/{id}/litellm/connection",
+    });
+  }
+
+  async deleteLiteLLMConnection(workspaceId: string): Promise<void> {
+    await this.fetch(`/api/workspaces/${workspaceId}/litellm/connection`, { method: "DELETE" });
+  }
+
+  async listLiteLLMSkills(workspaceId: string): Promise<ListLiteLLMSkillsResponse> {
+    const raw = await this.fetch<unknown>(`/api/workspaces/${workspaceId}/litellm/skills`);
+    return parseWithFallback(raw, ListLiteLLMSkillsResponseSchema, EMPTY_LITELLM_SKILLS, {
+      endpoint: "GET /api/workspaces/{id}/litellm/skills",
+    });
+  }
+
+  async listLiteLLMMCPServers(workspaceId: string): Promise<ListLiteLLMMCPServersResponse> {
+    const raw = await this.fetch<unknown>(`/api/workspaces/${workspaceId}/litellm/mcp-servers`);
+    return parseWithFallback(raw, ListLiteLLMMCPServersResponseSchema, EMPTY_LITELLM_MCP_SERVERS, {
+      endpoint: "GET /api/workspaces/{id}/litellm/mcp-servers",
+    });
+  }
+
+  async importLiteLLMMCPServer(
+    workspaceId: string,
+    serverName: string,
+  ): Promise<WorkspaceMcpServer> {
+    const raw = await this.fetch<unknown>(
+      `/api/workspaces/${workspaceId}/litellm/mcp-servers/${encodeURIComponent(serverName)}/import`,
+      { method: "POST" },
+    );
+    return parseWithFallback(raw, WorkspaceMcpServerSchema, EMPTY_WORKSPACE_MCP_SERVER, {
+      endpoint: "POST /api/workspaces/{id}/litellm/mcp-servers/{serverName}/import",
     });
   }
 

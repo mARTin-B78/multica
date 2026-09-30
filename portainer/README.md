@@ -15,6 +15,11 @@ the GitHub App, set `GITHUB_APP_SLUG`, `GITHUB_APP_ID`,
 `GITHUB_WEBHOOK_SECRET`, and the non-secret absolute host path
 `GITHUB_APP_PRIVATE_KEY_FILE`.
 
+The LiteLLM integration additionally requires `MULTICA_LITELLM_SECRET_KEY`,
+a stable base64-encoded 32-byte key. Generate it once with
+`openssl rand -base64 32`, store it as a Portainer stack environment variable,
+and keep it unchanged while any workspace has a LiteLLM connection saved.
+
 For an in-place migration of the existing `multica-ai` Portainer stack, also
 set `MULTICA_PGDATA_VOLUME_NAME=multica-ai_pgdata` and
 `MULTICA_UPLOADS_VOLUME_NAME=multica-ai_backend_uploads`. These make the

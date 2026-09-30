@@ -87,6 +87,9 @@ import type {
   User,
   WebhookDelivery,
   WorkspaceMcpServer,
+  LiteLLMConnection,
+  ListLiteLLMSkillsResponse,
+  ListLiteLLMMCPServersResponse,
 } from "../types";
 import type { CloudRuntimeNode } from "../runtimes/cloud-runtime";
 import type { CreateFeedbackResponse } from "../feedback/types";
@@ -3304,6 +3307,50 @@ export const EMPTY_WORKSPACE_MCP_SERVER: WorkspaceMcpServer = {
   created_at: "",
   updated_at: "",
 };
+
+export const LiteLLMConnectionSchema = z.object({
+  connected: z.boolean().default(false),
+  configured: z.boolean().default(false),
+  can_manage: z.boolean().default(false),
+  base_url: z.string().optional(),
+  skill_count: z.number().int().nonnegative().default(0),
+  mcp_count: z.number().int().nonnegative().default(0),
+}).loose();
+
+export const EMPTY_LITELLM_CONNECTION: LiteLLMConnection = {
+  connected: false,
+  configured: false,
+  can_manage: false,
+  skill_count: 0,
+  mcp_count: 0,
+};
+
+export const LiteLLMSkillSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  version: z.string().default(""),
+  description: z.string().default(""),
+  import_url: z.string().url(),
+}).loose();
+
+export const ListLiteLLMSkillsResponseSchema = z.object({
+  skills: z.array(LiteLLMSkillSchema).default([]),
+}).loose();
+
+export const EMPTY_LITELLM_SKILLS: ListLiteLLMSkillsResponse = { skills: [] };
+
+export const LiteLLMMCPServerSchema = z.object({
+  server_name: z.string(),
+  alias: z.string().default(""),
+  description: z.string().default(""),
+  transport: z.string().default("unknown"),
+}).loose();
+
+export const ListLiteLLMMCPServersResponseSchema = z.object({
+  servers: z.array(LiteLLMMCPServerSchema).default([]),
+}).loose();
+
+export const EMPTY_LITELLM_MCP_SERVERS: ListLiteLLMMCPServersResponse = { servers: [] };
 
 // Share links. Introduced with the workspace share-link invite flow; schemas
 // mirror the API responses so malformed payloads fall back to safe defaults.

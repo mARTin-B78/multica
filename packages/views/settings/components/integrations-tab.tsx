@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { ArrowLeft, ChevronRight, FolderGit2, Blocks } from "lucide-react";
+import { ArrowLeft, ChevronRight, FolderGit2, Blocks, Waypoints } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { ApiError } from "@multica/core/api";
 import { useWorkspaceId } from "@multica/core/hooks";
@@ -17,6 +17,7 @@ import { dingtalkInstallationsOptions } from "@multica/core/dingtalk";
 import { wecomInstallationsOptions } from "@multica/core/wecom";
 import { telegramInstallationsOptions } from "@multica/core/telegram";
 import { vcsConnectionsOptions } from "@multica/core/vcs";
+import { liteLLMConnectionOptions } from "@multica/core/litellm";
 import { useConfigStore, useFeatureEnabled } from "@multica/core/config";
 import { COMPOSIO_MCP_APPS_FLAG } from "@multica/core/feature-flags";
 import { cn } from "@multica/ui/lib/utils";
@@ -31,6 +32,7 @@ import { WecomTab } from "./wecom-tab";
 import { TelegramTab } from "./telegram-tab";
 import { GitHubTab } from "./github-tab";
 import { GitHubMark } from "./github-mark";
+import { LiteLLMTab } from "./litellm-tab";
 import { SettingsCard, SettingsSection, SettingsTab } from "./settings-layout";
 import { IntegrationChannelIcon } from "./integration-channel-icon";
 import { resolveSettingsLocation, settingsHref } from "./settings-navigation";
@@ -103,6 +105,11 @@ export function IntegrationsTab() {
     enabled: canView && vcsAvailable,
     select: (data) => (data.connections?.length ?? 0) > 0,
   });
+  const liteLLM = useQuery({
+    ...liteLLMConnectionOptions(wsId),
+    enabled: canView,
+    select: (data) => data.connected,
+  });
   const composio = useQuery({
     ...composioConnectionsOptions(),
     enabled: composioAvailable,
@@ -114,6 +121,20 @@ export function IntegrationsTab() {
     description?: string;
     entries: IntegrationEntry[];
   }[] = [
+    {
+      id: "ai-infrastructure",
+      label: t(($) => $.integrations.ai_title),
+      entries: [
+        {
+          id: "litellm",
+          label: "LiteLLM",
+          description: t(($) => $.integrations.litellm_hint),
+          icon: <Waypoints className="size-5" />,
+          content: <LiteLLMTab />,
+          state: liteLLM,
+        },
+      ],
+    },
     {
       id: "code",
       label: t(($) => $.integrations.code_title),

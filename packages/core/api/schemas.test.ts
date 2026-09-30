@@ -65,6 +65,12 @@ import {
   PluginPreviewSchema,
   EMPTY_PLUGIN_INSTALLATION_LIST,
   EMPTY_PLUGIN_PREVIEW,
+  LiteLLMConnectionSchema,
+  ListLiteLLMSkillsResponseSchema,
+  ListLiteLLMMCPServersResponseSchema,
+  EMPTY_LITELLM_CONNECTION,
+  EMPTY_LITELLM_SKILLS,
+  EMPTY_LITELLM_MCP_SERVERS,
 } from "./schemas";
 import { IssueViewSchema, IssueViewListSchema } from "./schemas";
 import {
@@ -2266,5 +2272,31 @@ describe("TaskMessageListSchema", () => {
   it("downgrades an unknown message type instead of dropping the transcript", () => {
     const parsed = TaskMessageListSchema.parse([{ ...row, type: "video" }]);
     expect(parsed[0]?.type).toBe("text");
+  });
+});
+
+describe("LiteLLM response schemas", () => {
+  it("falls back safely when the connection response is malformed", () => {
+    expect(parseWithFallback(
+      { connected: "yes" },
+      LiteLLMConnectionSchema,
+      EMPTY_LITELLM_CONNECTION,
+      { endpoint: "GET /api/workspaces/{id}/litellm/connection" },
+    )).toEqual(EMPTY_LITELLM_CONNECTION);
+  });
+
+  it("falls back safely when either hub response is malformed", () => {
+    expect(parseWithFallback(
+      { skills: "nope" },
+      ListLiteLLMSkillsResponseSchema,
+      EMPTY_LITELLM_SKILLS,
+      { endpoint: "GET /api/workspaces/{id}/litellm/skills" },
+    )).toEqual(EMPTY_LITELLM_SKILLS);
+    expect(parseWithFallback(
+      { servers: [{ server_name: 42 }] },
+      ListLiteLLMMCPServersResponseSchema,
+      EMPTY_LITELLM_MCP_SERVERS,
+      { endpoint: "GET /api/workspaces/{id}/litellm/mcp-servers" },
+    )).toEqual(EMPTY_LITELLM_MCP_SERVERS);
   });
 });
